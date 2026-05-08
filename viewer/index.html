@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏰 Tower AI Arena - 观战</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .game-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        
+        .game-info span {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        
+        .game-info .phase {
+            color: #2ecc71;
+        }
+        
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .game-canvas {
+            flex: 1;
+            background: #0a0a1a;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16/10;
+        }
+        
+        .sidebar {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .panel {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .panel h3 {
+            color: #f39c12;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .player-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .player-item {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        
+        .player-item:first-child {
+            background: linear-gradient(90deg, rgba(243,156,18,0.2), transparent);
+            border: 1px solid rgba(243,156,18,0.3);
+        }
+        
+        .player-rank {
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 30px;
+            color: #f39c12;
+        }
+        
+        .player-rank.gold { color: #ffd700; }
+        .player-rank.silver { color: #c0c0c0; }
+        .player-rank.bronze { color: #cd7f32; }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .player-hero {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        
+        .player-score {
+            text-align: right;
+        }
+        
+        .player-score .score {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2ecc71;
+        }
+        
+        .player-score .kills {
+            font-size: 0.8rem;
+            color: #e74c3c;
+        }
+        
+        .monster-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .monster-stat {
+            text-align: center;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+        
+        .monster-stat .count {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .monster-stat .type {
+            font-size: 0.75rem;
+            color: #888;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .game-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .game-input input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 0.9rem;
+        }
+        
+        .game-input input::placeholder {
+            color: #666;
+        }
+        
+        .status-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .hp-bar, .mp-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            transition: width 0.3s;
+        }
+        
+        .mp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            transition: width 0.3s;
+        }
+        
+        .leaderboard-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        @media (max-width: 1000px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏰 Tower AI Arena</h1>
+        <div class="game-info">
+            <span>游戏ID: <strong id="gameId">-</strong></span>
+            <span>波次: <strong id="wave">0</strong></span>
+            <span>剩余: <strong id="time">0:00</strong></span>
+            <span class="phase">状态: <strong id="phase">等待中</strong></span>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="game-canvas">
+            <canvas id="gameCanvas" width="800" height="500"></canvas>
+        </div>
+        
+        <div class="sidebar">
+            <div class="panel">
+                <h3>⚔️ 玩家排行</h3>
+                <div class="player-list" id="playerList">
+                    <div class="player-item">
+                        <span class="player-rank">-</span>
+                        <div class="player-info">
+                            <div class="player-name">等待加入...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>👹 怪物状态</h3>
+                <div class="monster-stats">
+                    <div class="monster-stat">
+                        <div class="count" id="monsterNormal">0</div>
+                        <div class="type">普通</div>
+                    </div>
+                    <div class="monster-stat">
+                        <div class="count" id="monsterElite">0</div>
+                        <div class="type">精英</div>
+                    </div>
+                    <div class="monster-stat">
+                        <div class="count" id="monsterBoss">0</div>
+                        <div class="type">Boss</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>🎮 观战控制</h3>
+                <div class="game-input">
+                    <input type="text" id="gameIdInput" placeholder="输入游戏ID...">
+                    <button class="btn btn-primary" onclick="joinGame()">加入</button>
+                </div>
+                <div class="controls" style="margin-top: 10px;">
+                    <button class="btn btn-secondary" onclick="refreshState()">🔄 刷新</button>
+                    <button class="btn btn-secondary" onclick="toggleAutoRefresh()">⏸️ 自动</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>🏆 全局排行</h3>
+                <div class="leaderboard-list" id="leaderboard">
+                    <div style="color: #666; text-align: center; padding: 20px;">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar" id="statusBar">
+        🔴 观看中
+    </div>
+    
+    <script>
+        // ============ 配置 ============
+        const BASE_URL = 'http://localhost:18799';
+        let currentGameId = null;
+        let autoRefresh = true;
+        let refreshInterval = null;
+        
+        // ============ Canvas 渲染 ============
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 塔位配置
+        const TOWERS = [
+            {id: 0, x: 0.15, y: 0.18, name: '左上'},
+            {id: 1, x: 0.85, y: 0.18, name: '右上'},
+            {id: 2, x: 0.5, y: 0.5, name: '中心'},
+            {id: 3, x: 0.15, y: 0.82, name: '左下'},
+            {id: 4, x: 0.85, y: 0.82, name: '右下'}
+        ];
+        
+        // 路线点
+        const ROUTES = {
+            inner: [
+                {x: 0.25, y: 0.28}, {x: 0.75, y: 0.28},
+                {x: 0.75, y: 0.72}, {x: 0.25, y: 0.72}
+            ],
+            outer: [
+                {x: 0.08, y: 0.09}, {x: 0.92, y: 0.09},
+                {x: 0.92, y: 0.91}, {x: 0.08, y: 0.91}
+            ]
+        };
+        
+        // 英雄类型配置
+        const HERO_COLORS = {
+            warrior: '#e74c3c',
+            archer: '#3498db',
+            mage: '#f39c12'
+        };
+        
+        const HERO_ICONS = {
+            warrior: '⚔️',
+            archer: '🏹',
+            mage: '🔮'
+        };
+        
+        const MONSTER_COLORS = {
+            normal: '#95a5a6',
+            elite: '#9b59b6',
+            boss: '#e74c3c'
+        };
+        
+        function render(state) {
+            const W = canvas.width;
+            const H = canvas.height;
+            
+            // 清空画布
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, W, H);
+            
+            // 绘制网格
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < W; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, H);
+                ctx.stroke();
+            }
+            for (let y = 0; y < H; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(W, y);
+                ctx.stroke();
+            }
+            
+            // 绘制路线
+            ctx.lineWidth = 20;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 外环
+            ctx.strokeStyle = 'rgba(52, 152, 219, 0.3)';
+            drawRoute(W, H, ROUTES.outer);
+            
+            // 内环
+            ctx.strokeStyle = 'rgba(46, 204, 113, 0.3)';
+            drawRoute(W, H, ROUTES.inner);
+            
+            // 绘制塔位
+            TOWERS.forEach(tower => {
+                const tx = tower.x * W;
+                const ty = tower.y * H;
+                
+                // 塔位底座
+                ctx.beginPath();
+                ctx.arc(tx, ty, 25, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 塔位名称
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(tower.name, tx, ty + 40);
+            });
+            
+            // 绘制怪物
+            if (state.monsters) {
+                state.monsters.forEach(monster => {
+                    const pos = getMonsterPos(monster, W, H);
+                    if (!pos) return;
+                    
+                    const color = MONSTER_COLORS[monster.type] || '#fff';
+                    const size = monster.type === 'boss' ? 18 : monster.type === 'elite' ? 14 : 10;
+                    
+                    // 怪物身体
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    
+                    // 血条
+                    const hpRatio = monster.hp / monster.max_hp;
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(pos.x - size, pos.y - size - 8, size * 2, 4);
+                    ctx.fillStyle = hpRatio > 0.5 ? '#2ecc71' : hpRatio > 0.25 ? '#f39c12' : '#e74c3c';
+                    ctx.fillRect(pos.x - size, pos.y - size - 8, size * 2 * hpRatio, 4);
+                });
+            }
+            
+            // 绘制英雄
+            if (state.players) {
+                state.players.forEach((player, idx) => {
+                    const tower = TOWERS.find(t => t.id === player.tower_id) || TOWERS[2];
+                    const hx = tower.x * W;
+                    const hy = tower.y * H;
+                    const color = HERO_COLORS[player.hero_type] || '#fff';
+                    const icon = HERO_ICONS[player.hero_type] || '❓';
+                    
+                    // 攻击范围
+                    const rangeSize = player.hero_type === 'warrior' ? 0.45 : 
+                                     player.hero_type === 'archer' ? 0.70 : 0.55;
+                    ctx.beginPath();
+                    ctx.arc(hx, hy, rangeSize * W, 0, Math.PI * 2);
+                    ctx.strokeStyle = `${color}33`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // 英雄图标
+                    ctx.font = '28px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(icon, hx, hy);
+                    
+                    // 血条
+                    const hpRatio = player.hp / player.max_hp;
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(hx - 20, hy - 25, 40, 5);
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.fillRect(hx - 20, hy - 25, 40 * hpRatio, 5);
+                    
+                    // MP条
+                    const mpRatio = player.mp / player.max_mp;
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(hx - 20, hy - 18, 40, 3);
+                    ctx.fillStyle = '#3498db';
+                    ctx.fillRect(hx - 20, hy - 18, 40 * mpRatio, 3);
+                    
+                    // 分数
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText(player.score, hx, hy + 20);
+                });
+            }
+            
+            // 绘制波次信息
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`波次 ${state.current_wave || 0}`, 10, 20);
+            
+            // 绘制时间
+            const mins = Math.floor((state.time_remaining || 0) / 60);
+            const secs = Math.floor((state.time_remaining || 0) % 60);
+            ctx.textAlign = 'right';
+            ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, W - 10, 20);
+        }
+        
+        function drawRoute(W, H, points) {
+            if (points.length < 2) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(points[0].x * W, points[0].y * H);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x * W, points[i].y * H);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+        
+        function getMonsterPos(monster, W, H) {
+            const route = ROUTES[monster.route];
+            if (!route || route.length < 2) return null;
+            
+            const progress = monster.progress || 0;
+            const segmentCount = route.length - 1;
+            const segment = Math.floor(progress * segmentCount);
+            const segmentProgress = (progress * segmentCount) - segment;
+            
+            const from = route[Math.min(segment, route.length - 1)];
+            const to = route[Math.min(segment + 1, route.length - 1)];
+            
+            return {
+                x: (from.x + (to.x - from.x) * segmentProgress) * W,
+                y: (from.y + (to.y - from.y) * segmentProgress) * H
+            };
+        }
+        
+        // ============ API 操作 ============
+        
+        async function fetchState(gameId) {
+            try {
+                const resp = await fetch(`${BASE_URL}/api/v1/games/${gameId}/state`);
+                if (!resp.ok) throw new Error('Failed to fetch state');
+                return await resp.json();
+            } catch (e) {
+                console.error('Fetch error:', e);
+                return null;
+            }
+        }
+        
+        async function fetchLeaderboard() {
+            try {
+                const resp = await fetch(`${BASE_URL}/api/v1/leaderboard?limit=10`);
+                if (!resp.ok) throw new Error('Failed to fetch leaderboard');
+                return await resp.json();
+            } catch (e) {
+                console.error('Leaderboard error:', e);
+                return { rankings: [] };
+            }
+        }
+        
+        function updateUI(state) {
+            if (!state) return;
+            
+            // 更新游戏信息
+            document.getElementById('gameId').textContent = state.game_id || '-';
+            document.getElementById('wave').textContent = state.current_wave || 0;
+            
+            const time = state.time_remaining || 0;
+            const mins = Math.floor(time / 60);
+            const secs = Math.floor(time % 60);
+            document.getElementById('time').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            
+            const phaseMap = {
+                pending: '等待中',
+                countdown: '倒计时',
+                playing: '进行中',
+                ended: '已结束'
+            };
+            document.getElementById('phase').textContent = phaseMap[state.phase] || state.phase;
+            
+            // 更新玩家列表
+            const playerList = document.getElementById('playerList');
+            if (state.players && state.players.length > 0) {
+                playerList.innerHTML = state.players.map((p, idx) => {
+                    const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+                    const heroIcon = HERO_ICONS[p.hero_type] || '❓';
+                    return `
+                        <div class="player-item">
+                            <span class="player-rank ${rankClass}">#${idx + 1}</span>
+                            <div class="player-info">
+                                <div class="player-name">${p.name || 'Agent'}</div>
+                                <div class="player-hero">${heroIcon} ${p.hero_type || 'warrior'}</div>
+                                <div class="hp-bar"><div class="hp-fill" style="width: ${(p.hp / p.max_hp) * 100}%"></div></div>
+                                <div class="mp-bar"><div class="mp-fill" style="width: ${(p.mp / p.max_mp) * 100}%"></div></div>
+                            </div>
+                            <div class="player-score">
+                                <div class="score">${p.score}</div>
+                                <div class="kills">击杀 ${p.kills}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // 更新怪物统计
+            if (state.monsters) {
+                const counts = { normal: 0, elite: 0, boss: 0 };
+                state.monsters.forEach(m => {
+                    if (m.hp > 0 && counts.hasOwnProperty(m.type)) {
+                        counts[m.type]++;
+                    }
+                });
+                document.getElementById('monsterNormal').textContent = counts.normal;
+                document.getElementById('monsterElite').textContent = counts.elite;
+                document.getElementById('monsterBoss').textContent = counts.boss;
+            }
+            
+            // 渲染画布
+            render(state);
+            
+            // 状态栏
+            document.getElementById('statusBar').textContent = 
+                state.phase === 'playing' ? '🟢 观战中' :
+                state.phase === 'countdown' ? '🟡 即将开始' :
+                state.phase === 'ended' ? '⚫ 已结束' : '🔴 等待中';
+        }
+        
+        function updateLeaderboardUI(data) {
+            const container = document.getElementById('leaderboard');
+            if (!data.rankings || data.rankings.length === 0) {
+                container.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">暂无排行数据</div>';
+                return;
+            }
+            
+            container.innerHTML = data.rankings.map((r, idx) => `
+                <div class="player-item">
+                    <span class="player-rank ${idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : ''}">#${idx + 1}</span>
+                    <div class="player-info">
+                        <div class="player-name">${r.name || 'Unknown'}</div>
+                        <div class="player-hero">${r.games || 0}场 | ${r.wins || 0}胜</div>
+                    </div>
+                    <div class="player-score">
+                        <div class="score">${r.total_score || 0}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function refreshState() {
+            if (!currentGameId) return;
+            
+            const state = await fetchState(currentGameId);
+            if (state) {
+                updateUI(state);
+            }
+        }
+        
+        async function refreshLeaderboard() {
+            const data = await fetchLeaderboard();
+            updateLeaderboardUI(data);
+        }
+        
+        function joinGame() {
+            const input = document.getElementById('gameIdInput');
+            const gameId = input.value.trim();
+            
+            if (!gameId) {
+                alert('请输入游戏ID');
+                return;
+            }
+            
+            currentGameId = gameId;
+            refreshState();
+        }
+        
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            
+            if (autoRefresh) {
+                refreshInterval = setInterval(() => {
+                    if (currentGameId && autoRefresh) {
+                        refreshState();
+                    }
+                }, 500);
+                document.querySelector('[onclick="toggleAutoRefresh()"]').textContent = '⏸️ 暂停';
+            } else {
+                clearInterval(refreshInterval);
+                document.querySelector('[onclick="toggleAutoRefresh()"]').textContent = '▶️ 自动';
+            }
+        }
+        
+        // ============ 初始化 ============
+        
+        async function init() {
+            // 检查服务器连接
+            try {
+                const resp = await fetch(`${BASE_URL}/health`);
+                if (resp.ok) {
+                    console.log('Connected to server');
+                    refreshLeaderboard();
+                }
+            } catch (e) {
+                console.error('Server not available:', e);
+            }
+            
+            // 启动自动刷新
+            toggleAutoRefresh();
+            
+            // 定期刷新排行榜
+            setInterval(refreshLeaderboard, 30000);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
