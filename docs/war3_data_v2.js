@@ -1,8 +1,8 @@
 // ==================== 魔兽兵种对战增强版 ====================
 // 包含：技能系统、动画效果、资源管理、科技升级
-// Updated: 2026-05-10 v2.2.0
+// Updated: 2026-05-10 v2.3.0
 
-const VERSION = "2.2.0";
+const VERSION = "2.3.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -755,7 +755,7 @@ class AIBrainV2 {
     this.personality = personality; // aggressive, defensive, balanced, economic
     this.resources = new ResourceManager(200, 100);
     this.army = [];
-    this.base = { hp: 2000, maxHp: 2000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
+    this.base = { hp: 3000, maxHp: 3000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
     this.strategyPhase = "early"; // early, mid, late
     this.turnCount = 0;
   }
