@@ -694,7 +694,7 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=2.1.0-20260509"></script>
+<script src="war3_data_v2.js?v=2.2.0-20260510"></script>
 <script>
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -849,7 +849,7 @@ function attackBase(attackers, base, side) {
   return { totalDmg, details };
 }
 
-// ==================== 收入计时器 ====================
+// ==================== 收入计时器（每2秒一次）====================
 function startIncomeTimer() {
   incomeTimerStart = Date.now();
   incomeTimerId = setInterval(() => {
