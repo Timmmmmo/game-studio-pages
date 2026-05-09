@@ -570,6 +570,114 @@
 
 <script src="war3_data_v2.js"></script>
 <script>
+// ==================== AIBrainV2 类 - 缺失的 AI 逻辑 ====================
+class AIBrainV2 {
+  constructor(owner, personality = "balanced") {
+    this.owner = owner;
+    this.personality = personality;
+    this.resources = {
+      gold: 1500,
+      lumber: 500,
+      goldPerTurn: 250,
+      lumberPerTurn: 100,
+      techs: new Set(),
+      getState: function() {
+        return {
+          gold: this.gold,
+          lumber: this.lumber,
+          goldPerTurn: this.goldPerTurn,
+          lumberPerTurn: this.lumberPerTurn
+        };
+      },
+      spend: function(amount) {
+        if (this.gold >= amount) { this.gold -= amount; return true; }
+        return false;
+      },
+      endTurn: function() {
+        this.gold += this.goldPerTurn;
+        this.lumber += this.lumberPerTurn;
+      }
+    };
+    this.army = [];
+    this.unitsProduced = [];
+  }
+
+  takeTurn(enemyArmy = []) {
+    const gold = this.resources.gold;
+    const lumber = this.resources.lumber;
+    const army = [];
+    const U = window.UNITS_V2;
+    
+    // 根据策略选择兵种
+    const order = this.getUnitOrder();
+    
+    // 主战兵种选择
+    for (const type of order) {
+      const unit = U[type];
+      if (!unit) continue;
+      const cost = unit.goldCost || unit.cost || 0;
+      while (gold >= cost && army.length < 10) {
+        army.push(type);
+        this.resources.gold -= cost;
+      }
+    }
+    
+    // 如果还有钱，买更多兵
+    const allTypes = Object.keys(U);
+    while (gold >= 100 && army.length < 12) {
+      const type = allTypes[Math.floor(Math.random() * allTypes.length)];
+      const unit = U[type];
+      const cost = unit.goldCost || unit.cost || 0;
+      if (gold >= cost) {
+        army.push(type);
+        gold -= cost;
+      } else {
+        break;
+      }
+    }
+    
+    // 生成 Unit 对象
+    this.army = army.map((type, idx) => {
+      const data = U[type];
+      return {
+        idx,
+        owner: this.owner,
+        name: data.name,
+        icon: data.icon,
+        type: type,
+        hp: data.hp,
+        max_hp: data.hp,
+        damage: data.damage,
+        armor: data.armor,
+        effectiveArmor: data.armor,
+        attackType: data.attackType,
+        armorType: data.armorType,
+        speed: data.speed,
+        range: data.range,
+        mana: data.mana || 0,
+        maxMana: data.maxMana || 0,
+        skillCooldowns: {},
+        dead: false,
+        tier: data.tier,
+        skills: data.skills || []
+      };
+    });
+    
+    this.unitsProduced = this.army.map(u => u.type);
+    return { unitsProduced: this.unitsProduced };
+  }
+
+  getUnitOrder() {
+    const orders = {
+      balanced: ["footman", "archer", "mage", "knight", "rifleman", "priest", "tauren", "footman", "siege_engine"],
+      aggressive: ["knight", "knight", "tauren", "footman", "footman", "siege_engine", "knight", "footman"],
+      defensive: ["archer", "archer", "rifleman", "footman", "mage", "archer", "priest", "rifleman", "footman"],
+      smart: ["knight", "archer", "mage", "footman", "siege_engine", "archer", "tauren", "footman", "knight"]
+    };
+    return orders[this.personality] || orders.balanced;
+  }
+}
+
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
 let battleRunning = false;
