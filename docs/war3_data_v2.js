@@ -960,3 +960,17 @@ if (typeof module !== 'undefined' && module.exports) {
     AIBrainV2
   };
 }
+
+// ==================== 浏览器全局导出 ====================
+if (typeof window !== 'undefined') {
+  window.VERSION = VERSION;
+  window.ARMOR_TYPES = ARMOR_TYPES;
+  window.ATTACK_TYPES = ATTACK_TYPES;
+  window.DAMAGE_TABLE = DAMAGE_TABLE;
+  window.SKILLS = SKILLS;
+  window.TECHS = TECHS;
+  window.UNITS_V2 = UNITS_V2;
+  window.UnitV2 = UnitV2;
+  window.ResourceManager = ResourceManager;
+  window.AIBrainV2 = AIBrainV2;
+}
