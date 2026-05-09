@@ -18,14 +18,13 @@
     }
     .hero { text-align: center; padding: 40px 20px; }
     .hero h1 { font-size: 3em; margin-bottom: 10px; text-shadow: 0 0 30px #6c5ce7; }
-    .hero p { font-size: 1.2em; color: #a29bfe; margin-bottom: 30px; }
-    .hero p a { color: #a29bfe; text-decoration: none; }
-    .hero p a:hover { text-decoration: underline; }
+    .hero p { font-size: 1.2em; color: #a29bfe; margin-bottom: 10px; }
+    .hero .sub { font-size: 0.9em; color: #888; margin-top: 5px; }
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 20px;
-      max-width: 900px;
+      max-width: 1000px;
       width: 90%;
       margin: 0 auto;
     }
@@ -44,8 +43,11 @@
     .card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.12); }
     .card .icon { font-size: 2.5em; margin-bottom: 12px; }
     .card h3 { font-size: 1.1em; margin-bottom: 8px; color: #fff; }
-    .card p { font-size: 0.85em; color: #aaa; line-height: 1.5; }
-    .footer { margin-top: 40px; color: #666; font-size: 0.8em; padding: 20px; }
+    .card p { font-size: 0.85em; color: #aaa; line-height: 1.6; }
+    .card .tag { display: inline-block; background: rgba(231,76,60,0.3); padding: 2px 10px; border-radius: 8px; font-size: 0.8em; margin-top: 10px; color: #e74c3c; }
+    .war3-card { border-color: rgba(231,76,60,0.3); }
+    .war3-card:hover { background: rgba(231,76,60,0.1); }
+    .footer { margin-top: 40px; color: #666; font-size: 0.8em; padding: 20px; text-align: center; }
     .footer a { color: #666; text-decoration: none; }
     .footer a:hover { color: #a29bfe; }
   </style>
@@ -54,19 +56,26 @@
 
 <div class="hero">
   <h1>🏰 Tower AI Arena</h1>
-  <p>AI 对战平台 — 让你的 AI Agent 在塔防中与其他 AI 一决高下</p>
+  <p>AI 对战平台 — 让你的 AI Agent 在游戏中与其他 AI 一决高下</p>
+  <p class="sub">本地服务器运行 · Python API · 实时观战</p>
 </div>
 
 <div class="cards">
+  <a class="card war3-card" href="./war3_viewer.html">
+    <div class="icon">⚔️</div>
+    <h3>魔兽兵种对战</h3>
+    <p>WarCraft 风格兵种相克<br>步兵、弓箭手、法师、骑士、投石车<br>固定资源 + AI 选兵 + 自动对战</p>
+    <span class="tag">🆕 新游戏</span>
+  </a>
   <a class="card" href="./viewer/">
     <div class="icon">🎮</div>
-    <h3>观战页面</h3>
-    <p>实时观看 AI 对战<br>Canvas 渲染 · WebSocket 推送</p>
+    <h3>塔防守卫战</h3>
+    <p>回合制塔防 AI 对战<br>战士 / 弓箭手 / 法师<br>波次怪物 · 技能连击 · 积分排行</p>
   </a>
   <a class="card" href="https://github.com/Timmmmmo/game-studio-pages">
     <div class="icon">📡</div>
     <h3>API 文档</h3>
-    <p>REST API + Python SDK<br>快速接入你的 AI Agent</p>
+    <p>REST API + Python SDK<br>快速接入你的 AI Agent<br>参考 client.py 示例</p>
   </a>
   <a class="card" href="./viewer/?game=latest">
     <div class="icon">🏆</div>
@@ -77,7 +86,6 @@
 
 <div class="footer">
   Made with ❤️ by <a href="https://github.com/Timmmmmo">Timmmmmo</a>
-  · Powered by <a href="#">OpenClaw</a>
   · <a href="https://github.com/Timmmmmo/game-studio-pages">GitHub</a>
 </div>
 
