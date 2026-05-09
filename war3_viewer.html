@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚔️ 魔兽兵种对战</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a0a00, #2d1810, #1a1a2e);
+      min-height: 100vh;
+      color: #fff;
+    }
+    .header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(0,0,0,0.3);
+    }
+    .header h1 { font-size: 2rem; color: #f39c12; text-shadow: 0 0 20px rgba(243,156,18,0.5); }
+    .header p { color: #888; margin-top: 5px; font-size: 0.9em; }
+
+    .counter-tip {
+      background: rgba(243,156,18,0.08);
+      border: 1px solid rgba(243,156,18,0.2);
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin: 10px auto;
+      max-width: 1100px;
+      font-size: 0.85rem;
+      color: #f39c12;
+      text-align: center;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+    .btn-green { background: linear-gradient(135deg, #27ae60, #1e8449); color: white; }
+    .btn-blue { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+    .btn-secondary { background: rgba(255,255,255,0.12); color: white; }
+    .btn-yellow { background: linear-gradient(135deg, #f39c12, #d68910); color: white; }
+
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 50px;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+    }
+    .stat-item { text-align: center; }
+    .stat-value { font-size: 1.6rem; font-weight: bold; color: #f39c12; }
+    .stat-label { font-size: 0.75rem; color: #888; }
+
+    .arena {
+      display: flex;
+      gap: 20px;
+      max-width: 1100px;
+      margin: 10px auto;
+      padding: 0 20px;
+      flex-wrap: wrap;
+    }
+    .army {
+      flex: 1;
+      min-width: 300px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .army-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .army-blue .army-title { color: #3498db; }
+    .army-red .army-title { color: #e74c3c; }
+
+    .unit-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      transition: background 0.2s;
+    }
+    .unit-icon { font-size: 1.4rem; width: 36px; text-align: center; }
+    .unit-info { flex: 1; }
+    .unit-name { font-weight: bold; font-size: 0.9rem; }
+    .unit-type { font-size: 0.72rem; color: #888; margin-top: 2px; }
+    .hp-bar { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+    .hp-fill { height: 100%; border-radius: 3px; transition: width 0.25s; }
+    .unit-stats { font-size: 0.8rem; color: #aaa; text-align: right; min-width: 55px; }
+    .dead-overlay { position: relative; }
+    .dead-overlay::after { content: '💀'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 1.5rem; opacity: 0.5; }
+
+    .log-section {
+      max-width: 1100px;
+      margin: 0 auto 20px;
+      padding: 0 20px;
+    }
+    .log-title { color: #f39c12; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; }
+    .log-box {
+      background: rgba(0,0,0,0.35);
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      line-height: 1.7;
+    }
+    .log-round { color: #555; margin: 2px 0; font-size: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 2px; }
+    .log-entry { padding: 1px 0; }
+    .log-blue { color: #5dade2; }
+    .log-red { color: #e57373; }
+    .log-kill { color: #ffd54f; font-weight: bold; }
+    .log-winner { color: #ffd54f; font-size: 1rem; font-weight: bold; padding: 6px 0; text-align: center; }
+
+    .result-banner {
+      text-align: center;
+      padding: 24px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      display: none;
+      margin: 10px auto;
+      max-width: 600px;
+      border-radius: 16px;
+    }
+    .result-blue { color: #3498db; background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.3); }
+    .result-red { color: #e74c3c; background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); }
+    .result-draw { color: #888; background: rgba(128,128,128,0.1); border: 1px solid rgba(128,128,128,0.3); }
+
+    .back-link {
+      display: inline-block;
+      margin: 16px auto;
+      padding: 8px 20px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: #a29bfe;
+      text-decoration: none;
+      transition: background 0.2s;
+      text-align: center;
+    }
+    .back-link:hover { background: rgba(255,255,255,0.15); }
+    .controls .back-link { margin: 0; }
+
+    .trophy { font-size: 2rem; margin-bottom: 8px; }
+    .vs-badge { background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 6px; font-size: 0.8rem; color: #888; }
+
+    .speed-control { display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 0.85rem; }
+    .speed-control input { width: 80px; accent-color: #f39c12; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚔️ 魔兽兵种对战</h1>
+  <p>WarCraft 风格兵种相克 · 自动对战演示</p>
+</div>
+
+<div class="counter-tip">
+  💡 相克提示：穿刺克无甲/轻甲 | 魔法克轻甲/中甲/重甲 | 攻城克城防/重甲 | 普通克轻甲/中甲
+</div>
+
+<div class="controls">
+  <button class="btn btn-primary" onclick="startBattleDemo()">🎮 演示对战</button>
+  <button class="btn btn-green" onclick="startTournament()">🏆 锦标赛</button>
+  <button class="btn btn-blue" onclick="startPVP()">⚔️ AI对战</button>
+  <button class="btn btn-yellow" onclick="showCounterTable()">📋 相克表</button>
+  <div class="speed-control">
+    <label>速度:</label>
+    <input type="range" min="50" max="1000" value="200" id="speedSlider" oninput="SPEED=1001-this.value">
+  </div>
+  <a class="btn btn-secondary back-link" href="./index.html">← 首页</a>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-value" id="roundNum">-</div><div class="stat-label">回合</div></div>
+  <div class="stat-item"><div class="stat-value" id="blueAlive">-</div><div class="stat-label">蓝方存活</div></div>
+  <div class="stat-item"><div class="stat-value" id="redAlive">-</div><div class="stat-label">红方存活</div></div>
+  <div class="stat-item"><div class="stat-value" id="logCount">0</div><div class="stat-label">行动数</div></div>
+</div>
+
+<div class="result-banner" id="resultBanner"></div>
+
+<div class="arena">
+  <div class="army army-blue">
+    <div class="army-title" id="blueTitle">🔵 蓝方</div>
+    <div id="blueArmy"><p style="color:#555;text-align:center;padding:40px;font-size:0.9rem">点击上方按钮开始对战</p></div>
+  </div>
+  <div class="army army-red">
+    <div class="army-title" id="redTitle">🔴 红方</div>
+    <div id="redArmy"><p style="color:#555;text-align:center;padding:40px;font-size:0.9rem">等待部署...</p></div>
+  </div>
+</div>
+
+<div class="log-section">
+  <div class="log-title">⚔️ 战斗记录</div>
+  <div class="log-box" id="battleLog"></div>
+</div>
+
+<script>
+// ==================== 兵种数据 ====================
+const U = {
+  footman:       { name:"步兵",      cost:100, hp:500,  dmg:25, atk:"normal", def:"medium",  armor:5, speed:280, icon:"⚔️" },
+  archer:        { name:"弓箭手",    cost:120, hp:300,  dmg:20, atk:"pierce", def:"none",   armor:0, speed:320, icon:"🏹" },
+  mage:          { name:"法师",      cost:150, hp:280,  dmg:35, atk:"magic",  def:"none",   armor:0, speed:300, icon:"🔮" },
+  knight:        { name:"骑士",      cost:200, hp:900,  dmg:40, atk:"normal", def:"heavy",   armor:10,speed:250, icon:"🛡️" },
+  siege_engine:  { name:"投石车",   cost:180, hp:400,  dmg:70, atk:"siege",  def:"fortified",armor:8,speed:200, icon:"💥" },
+  rifleman:      { name:"火枪手",   cost:140, hp:350,  dmg:30, atk:"pierce", def:"medium",  armor:3, speed:300, icon:"🔫" },
+  priest:        { name:"牧师",      cost:160, hp:320,  dmg:15, atk:"magic",  def:"light",   armor:1, speed:280, icon:"✝️" },
+  tauren:        { name:"科多兽",    cost:220, hp:800,  dmg:30, atk:"normal", def:"heavy",   armor:8, speed:240, icon:"🐂" },
+};
+
+const DMG = {
+  normal: { none:1.0,  light:1.5, medium:1.5, heavy:1.0, fortified:0.5 },
+  pierce: { none:1.5,  light:1.5, medium:0.7, heavy:0.7, fortified:0.3 },
+  magic:  { none:1.0,  light:1.5, medium:1.5, heavy:1.2, fortified:0.5 },
+  siege:  { none:0.5,  light:0.5, medium:1.5, heavy:1.5, fortified:2.0 },
+};
+
+const COUNTERS = [
+  { a:"穿刺攻击", b:"无甲/轻甲", m:"1.5x" },
+  { a:"魔法攻击", b:"轻甲/中甲", m:"1.2~1.5x" },
+  { a:"普通攻击", b:"轻甲/中甲", m:"1.5x" },
+  { a:"攻城攻击", b:"城防护甲",  m:"2.0x" },
+];
+
+function mult(atk, def) { return DMG[atk]?.[def] ?? 1.0; }
+
+// ==================== 单位类 ====================
+class Unit {
+  constructor(type, owner, idx) {
+    const t = U[type];
+    Object.assign(this, t);
+    this.type = type;
+    this.owner = owner;
+    this.idx = idx;
+    this.max_hp = t.hp;
+    this.hp = t.hp;
+    this.dead = false;
+  }
+  findTarget(enemies) {
+    let best = null, bestScore = -Infinity;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const m = mult(this.atk, e.def);
+      const vulnScore = (m - 1) * 100;
+      const hpScore = (1 - e.hp / e.max_hp) * 30;
+      const speedBonus = e.speed > this.speed ? 10 : 0;
+      const score = vulnScore + hpScore + speedBonus - e.idx * 2;
+      if (score > bestScore) { bestScore = score; best = e; }
+    }
+    return best;
+  }
+  act(enemies) {
+    if (this.dead) return null;
+    const t = this.findTarget(enemies);
+    if (!t) return null;
+    const dmg = Math.max(1, Math.round(this.dmg * mult(this.atk, t.def) - t.armor));
+    t.hp -= dmg;
+    const killed = t.hp <= 0;
+    if (killed) { t.dead = true; t.hp = 0; }
+    return { atk: this, def: t, dmg, killed };
+  }
+}
+
+// ==================== AI 策略 ====================
+function ai_smart(gold, enemyArmy) {
+  const army = [];
+  if (enemyArmy && enemyArmy.length > 0) {
+    const cnt = {};
+    enemyArmy.forEach(u => { cnt[u.def] = (cnt[u.def]||0)+1; });
+    const map = { none:"archer", light:"archer", medium:"mage", heavy:"mage", fortified:"siege_engine" };
+    for (const [def, n] of Object.entries(cnt)) {
+      const ct = map[def]||"footman";
+      for (let i = 0; i < Math.min(n+1, 4); i++) {
+        if (gold >= U[ct].cost) { army.push(ct); gold -= U[ct].cost; }
+      }
+    }
+  }
+  const order = ["knight","tauren","footman","archer","mage","siege_engine","rifleman","priest"];
+  for (const t of order) {
+    while (gold >= U[t].cost && army.length < 10) { army.push(t); gold -= U[t].cost; }
+  }
+  return army;
+}
+
+function ai_aggressive(gold) {
+  const army = [];
+  const order = ["knight","tauren","siege_engine","footman","knight","footman"];
+  for (const t of order) {
+    while (gold >= U[t].cost && army.length < 8) { army.push(t); gold -= U[t].cost; }
+  }
+  return army;
+}
+
+function ai_defensive(gold) {
+  const army = [];
+  const order = ["archer","rifleman","mage","priest","archer","footman","archer"];
+  for (const t of order) {
+    while (gold >= U[t].cost && army.length < 8) { army.push(t); gold -= U[t].cost; }
+  }
+  return army;
+}
+
+function ai_counter(gold, enemyArmy) {
+  if (!enemyArmy || !enemyArmy.length) return ai_smart(gold, null);
+  const cnt = {};
+  enemyArmy.forEach(u => { cnt[u.def] = (cnt[u.def]||0)+1; });
+  const army = [];
+  const map = { none:"archer", light:"rifleman", medium:"mage", heavy:"mage", fortified:"siege_engine" };
+  for (const [def, n] of Object.entries(cnt)) {
+    const ct = map[def]||"footman";
+    for (let i = 0; i < Math.min(Math.ceil(n*1.3)+1, 5); i++) {
+      if (gold >= U[ct].cost) { army.push(ct); gold -= U[ct].cost; }
+    }
+  }
+  while (gold >= U.footman.cost && army.length < enemyArmy.length) {
+    army.push("footman"); gold -= U.footman.cost;
+  }
+  return army;
+}
+
+function ai_balanced(gold) {
+  return ["knight","archer","archer","mage","footman","siege_engine","footman","rifleman"]
+    .filter(t => { if (gold >= U[t].cost) { gold -= U[t].cost; return true; } return false; });
+}
+
+function ai_random(gold) {
+  const types = Object.keys(U);
+  const army = [];
+  while (gold >= 100 && army.length < 8) {
+    const t = types[Math.floor(Math.random() * types.length)];
+    if (gold >= U[t].cost) { army.push(t); gold -= U[t].cost; }
+    else break;
+  }
+  return army;
+}
+
+const AI = { smart: ai_smart, aggressive: ai_aggressive, defensive: ai_defensive, counter: ai_counter, balanced: ai_balanced, random: ai_random };
+const AI_NAMES = { smart:"智能AI", aggressive:"激进AI", defensive:"防守AI", counter:"反选AI", balanced:"均衡AI", random:"随机AI" };
+const GOLD = 1500;
+
+// ==================== 战斗引擎 ====================
+var SPEED = 801;
+var battleRunning = false;
+
+async function runBattle(blueTypes, redTypes, blueName, redName) {
+  const blue = blueTypes.map((t, i) => new Unit(t, "blue", i));
+  const red = redTypes.map((t, i) => new Unit(t, "red", i));
+  const logs = [];
+  let round = 1;
+  battleRunning = true;
+
+  renderArmy(blue, "blueArmy");
+  renderArmy(red, "redArmy");
+
+  while (battleRunning) {
+    const all = [...blue.filter(u=>!u.dead), ...red.filter(u=>!u.dead)]
+      .sort((a,b) => b.speed - a.speed);
+
+    const actions = [];
+    for (const u of all) {
+      if (u.dead || !battleRunning) continue;
+      const enemies = u.owner === "blue" ? red : blue;
+      const a = u.act(enemies);
+      if (a) actions.push(a);
+    }
+
+    if (actions.length > 0) {
+      logs.push({ round, actions });
+      renderLog(logs);
+    }
+
+    const ba = blue.filter(u=>!u.dead).length;
+    const ra = red.filter(u=>!u.dead).length;
+    el("roundNum", round);
+    el("blueAlive", ba);
+    el("redAlive", ra);
+    el("logCount", logs.reduce((s,r)=>s+r.actions.length,0));
+
+    if (ba === 0 || ra === 0 || round > 60) {
+      battleRunning = false;
+      const w = ba > ra ? blueName : ra > ba ? redName : "平局";
+      const cls = ba > ra ? "result-blue" : ra > ba ? "result-red" : "result-draw";
+      showBanner(`🏆 ${w} 获胜！`, cls);
+      break;
+    }
+
+    round++;
+    await sleep(SPEED);
+  }
+}
+
+function el(id, v) { document.getElementById(id).textContent = v; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ==================== 渲染 ====================
+function renderArmy(units, containerId) {
+  const c = document.getElementById(containerId);
+  const alive = units.filter(u => !u.dead);
+  if (!alive.length) {
+    c.innerHTML = '<p style="color:#e74c3c;text-align:center;padding:20px;font-size:0.9rem">💀 全军覆没</p>';
+    return;
+  }
+  c.innerHTML = alive.map(u => {
+    const pct = u.hp / u.max_hp;
+    const col = pct > 0.6 ? "#27ae60" : pct > 0.3 ? "#f39c12" : "#e74c3c";
+    return `<div class="unit-card">
+      <span class="unit-icon">${u.icon}</span>
+      <div class="unit-info">
+        <div class="unit-name">${u.name}</div>
+        <div class="unit-type">${u.atk}→${u.def} | 伤${u.dmg} 防${u.armor}</div>
+        <div class="hp-bar"><div class="hp-fill" style="width:${pct*100}%;background:${col}"></div></div>
+      </div>
+      <div class="unit-stats">${u.hp}/${u.max_hp}</div>
+    </div>`;
+  }).join("");
+
+  const dead = units.filter(u=>u.dead).length;
+  if (dead > 0) c.innerHTML += `<p style="color:#555;font-size:0.78rem;margin-top:8px;text-align:center">💀 阵亡 ${dead} 单位</p>`;
+}
+
+function renderLog(logs) {
+  const c = document.getElementById("battleLog");
+  c.innerHTML = logs.slice(-50).map(entry => `
+    <div class="log-round">--- 第 ${entry.round} 回合 ---</div>
+    ${entry.actions.map(a => `
+      <div class="log-entry ${a.atk.owner==='blue'?'log-blue':'log-red'}">
+        ${a.atk.icon} ${a.atk.name} → ${a.def.icon} ${a.def.name}
+        ${a.dmg} 伤害 ${a.killed?'<span class="log-kill">💀击杀</span>':''}
+      </div>
+    `).join("")}
+  `).join("");
+  c.scrollTop = c.scrollHeight;
+}
+
+function showBanner(text, cls) {
+  const b = document.getElementById("resultBanner");
+  b.textContent = text;
+  b.className = `result-banner ${cls}`;
+  b.style.display = "block";
+}
+
+function reset() {
+  battleRunning = false;
+  el("roundNum", "-");
+  el("blueAlive", "-");
+  el("redAlive", "-");
+  el("logCount", "0");
+  document.getElementById("resultBanner").style.display = "none";
+  document.getElementById("battleLog").innerHTML = "";
+  document.getElementById("blueArmy").innerHTML = '<p style="color:#555;text-align:center;padding:40px;font-size:0.9rem">等待部署...</p>';
+  document.getElementById("redArmy").innerHTML = '<p style="color:#555;text-align:center;padding:40px;font-size:0.9rem">等待部署...</p>';
+}
+
+// ==================== 演示模式 ====================
+async function startBattleDemo() {
+  reset();
+  document.getElementById("blueTitle").textContent = "🔵 智能AI";
+  document.getElementById("redTitle").textContent = "🔴 激进AI";
+  const blue = ai_smart(GOLD, null);
+  const red = ai_aggressive(GOLD);
+  await runBattle(blue, red, "智能AI", "激进AI");
+}
+
+// ==================== 锦标赛 ====================
+async function startTournament() {
+  reset();
+  const strategies = ["smart","aggressive","defensive","balanced"];
+  const scores = {};
+  strategies.forEach(s => scores[s] = { w:0, l:0 });
+
+  const logEl = document.getElementById("battleLog");
+  logEl.innerHTML = '<div style="color:#f39c12;text-align:center;padding:20px">🏆 锦标赛开始！4种AI两两对战...</div>';
+
+  for (let i = 0; i < strategies.length; i++) {
+    for (let j = i+1; j < strategies.length; j++) {
+      const s1 = strategies[i], s2 = strategies[j];
+      logEl.innerHTML += `<div style="color:#888;padding:4px 0;font-size:0.85rem">⚔️ ${AI_NAMES[s1]} vs ${AI_NAMES[s2]}</div>`;
+      document.getElementById("blueTitle").textContent = `🔵 ${AI_NAMES[s1]}`;
+      document.getElementById("redTitle").textContent = `🔴 ${AI_NAMES[s2]}`;
+
+      const bArmy = AI[s1](GOLD);
+      const rArmy = AI[s2](GOLD);
+      const blueU = bArmy.map((t,idx) => new Unit(t,"blue",idx));
+      const redU = rArmy.map((t,idx) => new Unit(t,"red",idx));
+
+      for (let r = 1; r <= 60; r++) {
+        const all = [...blueU.filter(u=>!u.dead), ...redU.filter(u=>!u.dead)].sort((a,b)=>b.speed-a.speed);
+        for (const u of all) {
+          if (u.dead) continue;
+          const a = u.act(u.owner==="blue"?redU:blueU);
+          if (a) logEl.innerHTML += `<div style="font-size:0.78rem;padding:0 4px" class="${u.owner==='blue'?'log-blue':'log-red'}">${u.icon}→${a.def.icon} ${a.dmg} ${a.killed?'💀':''}</div>`;
+        }
+        el("roundNum", r);
+        el("blueAlive", blueU.filter(u=>!u.dead).length);
+        el("redAlive", redU.filter(u=>!u.dead).length);
+        if (!blueU.filter(u=>!u.dead).length || !redU.filter(u=>!u.dead).length) break;
+      }
+
+      const bw = blueU.filter(u=>!u.dead).length;
+      const rw = redU.filter(u=>!u.dead).length;
+      if (bw > rw) { scores[s1].w++; scores[s2].l++; logEl.innerHTML += `<div style="color:#f39c12;font-weight:bold;font-size:0.85rem">🏆 ${AI_NAMES[s1]} 胜</div>`; }
+      else if (rw > bw) { scores[s2].w++; scores[s1].l++; logEl.innerHTML += `<div style="color:#f39c12;font-weight:bold;font-size:0.85rem">🏆 ${AI_NAMES[s2]} 胜</div>`; }
+      else { logEl.innerHTML += `<div style="color:#888;font-size:0.85rem">⚖️ 平局</div>`; }
+      await sleep(500);
+    }
+  }
+
+  const sorted = Object.entries(scores).sort((a,b)=>b[1].w-a[1].w);
+  logEl.innerHTML += `<div style="font-size:1rem;font-weight:bold;padding:8px 0;color:#ffd54f">🏆 锦标赛排名</div>`;
+  sorted.forEach(([s,r],i) => {
+    logEl.innerHTML += `<div style="font-size:0.9rem;padding:2px 0">${i+1}. ${AI_NAMES[s]}: ${r.w}胜 ${r.l}负</div>`;
+  });
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ==================== AI vs AI ====================
+async function startPVP() {
+  reset();
+  const opts = Object.keys(AI);
+  const s1 = opts[Math.floor(Math.random()*opts.length)];
+  let s2 = opts[Math.floor(Math.random()*opts.length)];
+  while (s2 === s1) s2 = opts[Math.floor(Math.random()*opts.length)];
+
+  document.getElementById("blueTitle").textContent = `🔵 ${AI_NAMES[s1]}`;
+  document.getElementById("redTitle").textContent = `🔴 ${AI_NAMES[s2]}`;
+
+  const bArmy = AI[s1](GOLD);
+  const rArmy = AI[s2](GOLD);
+
+  await runBattle(bArmy, rArmy, AI_NAMES[s1], AI_NAMES[s2]);
+}
+
+// ==================== 相克表 ====================
+function showCounterTable() {
+  const ARMOR_NAMES = { none:"无甲", light:"轻甲", medium:"中甲", heavy:"重甲", fortified:"城防" };
+  const ATK_NAMES = { pierce:"穿刺", magic:"魔法", normal:"普通", siege:"攻城" };
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:0.85rem">';
+  html += '<tr><th style="padding:6px;text-align:left;color:#f39c12">攻击</th><th style="padding:6px;text-align:left;color:#27ae60">克制</th><th style="padding:6px;text-align:left;color:#fff">效果</th></tr>';
+  for (const [atk, defs] of Object.entries(DMG)) {
+    for (const [def, m] of Object.entries(defs)) {
+      if (m !== 1.0) {
+        html += `<tr><td style="padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.05);color:#5dade2">${ATK_NAMES[atk]||atk}</td><td style="padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.05);color:#2ecc71">${ARMOR_NAMES[def]||def}</td><td style="padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.05);color:#fff">${m}x 伤害</td></tr>`;
+      }
+    }
+  }
+  html += '</table>';
+  document.getElementById("battleLog").innerHTML = `<div style="max-width:420px;margin:0 auto;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px">${html}</div>`;
+}
+</script>
+</body>
+</html>
