@@ -603,65 +603,65 @@ class AIBrainV2 {
   }
 
   takeTurn(enemyArmy = []) {
-    const gold = this.resources.gold;
-    const lumber = this.resources.lumber;
-    const army = [];
     const U = window.UNITS_V2;
+    const UnitClass = window.UnitV2 || class SimpleUnit {
+      constructor(type, owner, idx) {
+        const t = U[type];
+        Object.assign(this, t);
+        this.type = type;
+        this.owner = owner;
+        this.idx = idx;
+        this.max_hp = t.hp;
+        this.hp = t.hp;
+        this.dead = false;
+        this.skillCooldowns = {};
+        this.slowed = 0;
+        this.tempArmor = 0;
+      }
+      get effectiveArmor() { return this.armor + (this.tempArmor || 0); }
+      get effectiveSpeed() { return this.slowed > 0 ? Math.floor(this.speed * 0.5) : this.speed; }
+      findTarget(enemies) {
+        let best = null, bestScore = -Infinity;
+        for (const e of enemies) {
+          if (e.dead) continue;
+          const m = (window.DAMAGE_TABLE[this.attackType] || {})[e.armorType] || 1.0;
+          const score = (m - 1) * 100 + (1 - e.hp / e.max_hp) * 30 - e.idx * 2;
+          if (score > bestScore) { bestScore = score; best = e; }
+        }
+        return best;
+      }
+      act(enemies, allies, techs) {
+        if (this.dead) return null;
+        if (this.slowed > 0) this.slowed--;
+        Object.keys(this.skillCooldowns).forEach(s => { if (this.skillCooldowns[s] > 0) this.skillCooldowns[s]--; });
+        const actions = [];
+        const target = this.findTarget(enemies);
+        if (!target) return actions;
+        const baseDmg = this.damage + (window.TECHS?.power_boost?.active ? 10 : 0);
+        const m = (window.DAMAGE_TABLE[this.attackType] || {})[target.armorType] || 1.0;
+        const mitigated = Math.max(1, Math.floor(baseDmg * m * (1 - (target.effectiveArmor || target.armor) / (target.effectiveArmor || target.armor + 100))));
+        target.hp -= mitigated;
+        if (target.hp <= 0) { target.hp = 0; target.dead = true; }
+        actions.push({ type: "attack", target, damage: mitigated });
+        return actions;
+      }
+    };
     
-    // 根据策略选择兵种
-    const order = this.getUnitOrder();
-    
-    // 主战兵种选择
-    for (const type of order) {
-      const unit = U[type];
-      if (!unit) continue;
-      const cost = unit.goldCost || unit.cost || 0;
-      while (gold >= cost && army.length < 10) {
-        army.push(type);
-        this.resources.gold -= cost;
+    // 资源足够则多次出兵
+    for (let round = 0; round < 3; round++) {
+      if (this.army.length >= 12) break;
+      const goldLeft = this.resources.gold;
+      const order = this.getUnitOrder();
+      for (const type of order) {
+        const unit = U[type];
+        if (!unit) continue;
+        const cost = unit.goldCost || unit.cost || 100;
+        if (this.resources.gold >= cost && this.army.length < 12) {
+          this.army.push(new UnitClass(type, this.owner, this.army.length));
+          this.resources.gold -= cost;
+        }
       }
     }
-    
-    // 如果还有钱，买更多兵
-    const allTypes = Object.keys(U);
-    while (gold >= 100 && army.length < 12) {
-      const type = allTypes[Math.floor(Math.random() * allTypes.length)];
-      const unit = U[type];
-      const cost = unit.goldCost || unit.cost || 0;
-      if (gold >= cost) {
-        army.push(type);
-        gold -= cost;
-      } else {
-        break;
-      }
-    }
-    
-    // 生成 Unit 对象
-    this.army = army.map((type, idx) => {
-      const data = U[type];
-      return {
-        idx,
-        owner: this.owner,
-        name: data.name,
-        icon: data.icon,
-        type: type,
-        hp: data.hp,
-        max_hp: data.hp,
-        damage: data.damage,
-        armor: data.armor,
-        effectiveArmor: data.armor,
-        attackType: data.attackType,
-        armorType: data.armorType,
-        speed: data.speed,
-        range: data.range,
-        mana: data.mana || 0,
-        maxMana: data.maxMana || 0,
-        skillCooldowns: {},
-        dead: false,
-        tier: data.tier,
-        skills: data.skills || []
-      };
-    });
     
     this.unitsProduced = this.army.map(u => u.type);
     return { unitsProduced: this.unitsProduced };
