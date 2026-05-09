@@ -1,8 +1,8 @@
 // ==================== 魔兽兵种对战增强版 ====================
 // 包含：技能系统、动画效果、资源管理、科技升级
-// Updated: 2026-05-09 v2.0.2
+// Updated: 2026-05-09 v2.1.0
 
-const VERSION = "2.0.2";
+const VERSION = "2.1.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -666,12 +666,18 @@ class UnitV2 {
 
 // ==================== 资源管理系统 ====================
 class ResourceManager {
-  constructor(startingGold = 1500, startingLumber = 0) {
+  constructor(startingGold = 200, startingLumber = 100) {
     this.gold = startingGold;
     this.lumber = startingLumber;
-    this.goldPerTurn = 50;
-    this.lumberPerTurn = 0;
+    this.goldPerTurn = 20;
+    this.lumberPerTurn = 10;
     this.techs = [];
+  }
+
+  // 每5秒自动收入
+  addIncome() {
+    this.gold += this.goldPerTurn;
+    this.lumber += this.lumberPerTurn;
   }
 
   canAfford(unitType) {
@@ -720,8 +726,8 @@ class ResourceManager {
     this.techs.push(techId);
 
     // 应用科技效果
-    if (techId === "gold_mining") this.goldPerTurn += 50;
-    if (techId === "lumber_harvest") this.lumberPerTurn += 20;
+    if (techId === "gold_mining") this.goldPerTurn += 20;
+    if (techId === "lumber_harvest") this.lumberPerTurn += 10;
 
     return true;
   }
@@ -747,8 +753,9 @@ class AIBrainV2 {
   constructor(name, personality = "balanced") {
     this.name = name;
     this.personality = personality; // aggressive, defensive, balanced, economic
-    this.resources = new ResourceManager(1500, 50);
+    this.resources = new ResourceManager(200, 100);
     this.army = [];
+    this.base = { hp: 1000, maxHp: 1000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
     this.strategyPhase = "early"; // early, mid, late
     this.turnCount = 0;
   }
@@ -852,9 +859,12 @@ class AIBrainV2 {
     if (availableUnits.length === 0) return choices;
 
     // 根据策略选择单位
-    const targetArmySize = this.strategyPhase === "early" ? 5 : this.strategyPhase === "mid" ? 8 : 10;
+    const livingCount = this.army.filter(u => !u.dead).length;
+    const targetArmySize = this.strategyPhase === "early" ? 3 : this.strategyPhase === "mid" ? 6 : 9;
+    const maxToProduce = Math.max(0, targetArmySize - livingCount);
 
-    while (this.army.length + choices.length < targetArmySize) {
+    let produceCount = 0;
+    while (produceCount < maxToProduce) {
       let bestChoice = null;
       let bestScore = -Infinity;
 
@@ -911,6 +921,7 @@ class AIBrainV2 {
 
       if (bestChoice && this.resources.purchase(bestChoice)) {
         choices.push(bestChoice);
+        produceCount++;
       } else {
         break;
       }
@@ -919,9 +930,19 @@ class AIBrainV2 {
     return choices;
   }
 
-  // 执行回合
+  // 清理死亡单位（释放索引空间）
+  cleanupDead() {
+    this.army = this.army.filter(u => !u.dead);
+    // 重新分配索引
+    this.army.forEach((u, i) => { u.idx = i; });
+  }
+
+  // 执行回合（每次收入周期调用一次）
   takeTurn(enemyArmy) {
     this.turnCount++;
+
+    // 清理死亡单位
+    this.cleanupDead();
 
     // 更新战略阶段
     if (this.turnCount > 10) this.strategyPhase = "late";
@@ -933,18 +954,26 @@ class AIBrainV2 {
       this.resources.researchTech(techChoice);
     }
 
-    // 2. 生产单位
-    const newUnits = this.decideProduction(enemyArmy);
-    newUnits.forEach(u => {
-      this.army.push(new UnitV2(u, this.name, this.army.length));
-    });
-
-    // 3. 获得回合收入
-    this.resources.endTurn();
+    // 2. 生产单位（场上单位上限12）
+    const livingCount = this.army.filter(u => !u.dead).length;
+    if (livingCount < 12) {
+      const newUnits = this.decideProduction(enemyArmy);
+      newUnits.forEach(u => {
+        const unit = new UnitV2(u, this.name, this.army.length);
+        unit._newSpawn = true;
+        unit._marked = true;
+        this.army.push(unit);
+      });
+      return {
+        techResearched: techChoice,
+        unitsProduced: newUnits,
+        resources: this.resources.getState()
+      };
+    }
 
     return {
       techResearched: techChoice,
-      unitsProduced: newUnits,
+      unitsProduced: [],
       resources: this.resources.getState()
     };
   }
