@@ -568,115 +568,11 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=20260509"></script>
+<script src="war3_data_v2.js?v=2.0.2-20260509"></script>
 <script>
-// ==================== AIBrainV2 类 - 缺失的 AI 逻辑 ====================
-class AIBrainV2 {
-  constructor(owner, personality = "balanced") {
-    this.owner = owner;
-    this.personality = personality;
-    this.resources = {
-      gold: 1500,
-      lumber: 500,
-      goldPerTurn: 250,
-      lumberPerTurn: 100,
-      techs: new Set(),
-      getState: function() {
-        return {
-          gold: this.gold,
-          lumber: this.lumber,
-          goldPerTurn: this.goldPerTurn,
-          lumberPerTurn: this.lumberPerTurn
-        };
-      },
-      spend: function(amount) {
-        if (this.gold >= amount) { this.gold -= amount; return true; }
-        return false;
-      },
-      endTurn: function() {
-        this.gold += this.goldPerTurn;
-        this.lumber += this.lumberPerTurn;
-      }
-    };
-    this.army = [];
-    this.unitsProduced = [];
-  }
-
-  takeTurn(enemyArmy = []) {
-    const U = window.UNITS_V2;
-    const UnitClass = window.UnitV2 || class SimpleUnit {
-      constructor(type, owner, idx) {
-        const t = U[type];
-        Object.assign(this, t);
-        this.type = type;
-        this.owner = owner;
-        this.idx = idx;
-        this.max_hp = t.hp;
-        this.hp = t.hp;
-        this.dead = false;
-        this.skillCooldowns = {};
-        this.slowed = 0;
-        this.tempArmor = 0;
-      }
-      get effectiveArmor() { return this.armor + (this.tempArmor || 0); }
-      get effectiveSpeed() { return this.slowed > 0 ? Math.floor(this.speed * 0.5) : this.speed; }
-      findTarget(enemies) {
-        let best = null, bestScore = -Infinity;
-        for (const e of enemies) {
-          if (e.dead) continue;
-          const m = (window.DAMAGE_TABLE[this.attackType] || {})[e.armorType] || 1.0;
-          const score = (m - 1) * 100 + (1 - e.hp / e.max_hp) * 30 - e.idx * 2;
-          if (score > bestScore) { bestScore = score; best = e; }
-        }
-        return best;
-      }
-      act(enemies, allies, techs) {
-        if (this.dead) return null;
-        if (this.slowed > 0) this.slowed--;
-        Object.keys(this.skillCooldowns).forEach(s => { if (this.skillCooldowns[s] > 0) this.skillCooldowns[s]--; });
-        const actions = [];
-        const target = this.findTarget(enemies);
-        if (!target) return actions;
-        const baseDmg = this.damage + (window.TECHS?.power_boost?.active ? 10 : 0);
-        const m = (window.DAMAGE_TABLE[this.attackType] || {})[target.armorType] || 1.0;
-        const mitigated = Math.max(1, Math.floor(baseDmg * m * (1 - (target.effectiveArmor || target.armor) / (target.effectiveArmor || target.armor + 100))));
-        target.hp -= mitigated;
-        if (target.hp <= 0) { target.hp = 0; target.dead = true; }
-        actions.push({ type: "attack", target, damage: mitigated });
-        return actions;
-      }
-    };
-    
-    // 资源足够则多次出兵
-    for (let round = 0; round < 3; round++) {
-      if (this.army.length >= 12) break;
-      const goldLeft = this.resources.gold;
-      const order = this.getUnitOrder();
-      for (const type of order) {
-        const unit = U[type];
-        if (!unit) continue;
-        const cost = unit.goldCost || unit.cost || 100;
-        if (this.resources.gold >= cost && this.army.length < 12) {
-          this.army.push(new UnitClass(type, this.owner, this.army.length));
-          this.resources.gold -= cost;
-        }
-      }
-    }
-    
-    this.unitsProduced = this.army.map(u => u.type);
-    return { unitsProduced: this.unitsProduced };
-  }
-
-  getUnitOrder() {
-    const orders = {
-      balanced: ["footman", "archer", "mage", "knight", "rifleman", "priest", "tauren", "footman", "siege_engine"],
-      aggressive: ["knight", "knight", "tauren", "footman", "footman", "siege_engine", "knight", "footman"],
-      defensive: ["archer", "archer", "rifleman", "footman", "mage", "archer", "priest", "rifleman", "footman"],
-      smart: ["knight", "archer", "mage", "footman", "siege_engine", "archer", "tauren", "footman", "knight"]
-    };
-    return orders[this.personality] || orders.balanced;
-  }
-}
+// ==================== 使用 war3_data_v2.js 中的 AIBrainV2 和 UnitV2 ====================
+// 注意：AIBrainV2、UnitV2、ResourceManager 等类已在 war3_data_v2.js 中完整实现
+// 包含：技能系统、科技效果、敌人分析、策略阶段等高级功能
 
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -774,7 +670,13 @@ function updateResourceDisplay() {
 
 function renderTechs(containerId, techs) {
   const container = document.getElementById(containerId);
-  container.innerHTML = techs.map(t =>
+  if (!techs || techs.length === 0) {
+    container.innerHTML = '<span style="color:#555;font-size:0.75rem">无科技</span>';
+    return;
+  }
+  // 支持数组和Set两种类型
+  const techList = Array.isArray(techs) ? techs : Array.from(techs);
+  container.innerHTML = techList.map(t =>
     `<span class="tech-badge active">${TECHS[t]?.name || t}</span>`
   ).join("");
 }
@@ -910,6 +812,13 @@ async function executeRound() {
   }
 
   logContainer.innerHTML += roundLog;
+  // BUG-007: 日志上限100条，防止溢出
+  const entries = logContainer.querySelectorAll('.log-entry, .log-round');
+  if (entries.length > 100) {
+    for (let i = 0; i < entries.length - 100; i++) {
+      entries[i].remove();
+    }
+  }
   logContainer.scrollTop = logContainer.scrollHeight;
 }
 

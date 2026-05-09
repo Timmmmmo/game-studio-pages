@@ -1,8 +1,8 @@
 // ==================== 魔兽兵种对战增强版 ====================
 // 包含：技能系统、动画效果、资源管理、科技升级
-// Updated: 2026-05-09 v2.0.1
+// Updated: 2026-05-09 v2.0.2
 
-const VERSION = "2.0.1";
+const VERSION = "2.0.2";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -589,9 +589,13 @@ class UnitV2 {
       if (techs.includes("siege_tactics") && this.attackType === "siege") baseDmg += 15;
     }
 
-    // 计算伤害
+    // 计算伤害 - 使用魔兽3标准护甲公式
+    // 减伤百分比 = 护甲 * 0.06 / (1 + 护甲 * 0.06)
+    // 实际伤害 = 基础伤害 * 相克倍率 * (1 - 减伤百分比)
     const mult = DAMAGE_TABLE[this.attackType]?.[target.armorType] ?? 1.0;
-    let dmg = Math.max(1, Math.round(baseDmg * mult - target.effectiveArmor));
+    const armor = target.effectiveArmor || target.armor || 0;
+    const damageReduction = armor * 0.06 / (1 + armor * 0.06);
+    let dmg = Math.max(1, Math.round(baseDmg * mult * (1 - damageReduction)));
 
     // 检查技能效果
     let crit = false;
