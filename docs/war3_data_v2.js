@@ -2,7 +2,7 @@
 // 包含：技能系统、动画效果、资源管理、科技升级
 // Updated: 2026-05-10 v2.5.0 - 英雄系统
 
-const VERSION = "2.5.0";
+const VERSION = "2.6.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -249,24 +249,19 @@ const SKILLS = {
     cooldown: 15,
     manaCost: 150,
     effect: (unit, allies) => {
-      const elemental = {
-        name: "水元素",
-        icon: "💧",
-        hp: 400,
-        max_hp: 400,
-        damage: 25,
-        attackType: "magic",
-        armorType: "light",
-        armor: 2,
-        speed: 280,
-        range: "ranged",
-        mana: 0,
-        maxMana: 0,
-        skills: [],
-        isSummon: true,
-        owner: unit.owner,
-        dead: false
-      };
+      // 用 UnitV2 创建水元素，使其能正常参与战斗
+      const elemental = new UnitV2("water_elemental", unit.owner, allies.length);
+      elemental.hp = 400;
+      elemental.max_hp = 400;
+      elemental.damage = 25;
+      elemental.attackType = "magic";
+      elemental.armorType = "light";
+      elemental.armor = 2;
+      elemental.effectiveArmor = 2;
+      elemental.speed = 280;
+      elemental.range = "ranged";
+      elemental.isSummon = true;
+      elemental._marked = true;
       allies.push(elemental);
       return { targets: 1, summon: true };
     }
@@ -280,9 +275,11 @@ const SKILLS = {
     radius: 3,
     effect: (allies) => {
       allies.forEach(u => {
-        u.attackSpeedBonus = (u.attackSpeedBonus || 0) + 30;
-        if (u.maxMana > 0) {
-          u.manaRegen = (u.manaRegen || 0) + 5;
+        if (!u.dead) {
+          u.attackSpeedBonus = 30; // 本回合攻速加成
+          if (u.maxMana > 0 && u.mana < u.maxMana) {
+            u.mana = Math.min(u.maxMana, u.mana + 5); // 本回合回蓝
+          }
         }
       });
     }
@@ -711,6 +708,32 @@ const UNITS_V2 = {
     tier: 3,
     requires: ["hero_training"],
     desc: "吸血英雄，有重生能力"
+  },
+
+  // 特殊召唤单位
+  water_elemental: {
+    name: "水元素",
+    icon: "💧",
+    cost: 0,
+    goldCost: 0,
+    lumberCost: 0,
+    hp: 400,
+    max_hp: 400,
+    damage: 25,
+    attackType: "magic",
+    armorType: "light",
+    armor: 2,
+    effectiveArmor: 2,
+    speed: 280,
+    attackSpeed: 1.0,
+    range: "ranged",
+    mana: 0,
+    maxMana: 0,
+    manaRegen: 0,
+    skills: [],
+    tier: 2,
+    desc: "大法师召唤的水元素",
+    isSummon: true
   }
 };
 
@@ -778,6 +801,12 @@ class UnitV2 {
   act(enemies, allies, techs) {
     if (this.dead) return null;
 
+    // 处理眩晕效果
+    if (this.stunned > 0) {
+      this.stunned--;
+      return null; // 眩晕中无法行动
+    }
+
     // 减少减速效果
     if (this.slowed > 0) this.slowed--;
 
@@ -787,6 +816,16 @@ class UnitV2 {
     });
 
     const actions = [];
+
+    // 0. 应用光环效果（被动，每回合生效）
+    if (this.skills.length > 0) {
+      for (const skillId of this.skills) {
+        const skill = SKILLS[skillId];
+        if (skill && skill.type === "aura") {
+          skill.effect(this.owner === "blue" ? allies : allies);
+        }
+      }
+    }
 
     // 1. 检查主动技能
     if (this.skills.length > 0 && this.mana > 0) {
@@ -816,6 +855,13 @@ class UnitV2 {
     if (!target) return actions.length > 0 ? actions : null;
 
     let baseDmg = this.damage;
+
+    // 应用疾风步/隐身加成
+    if (this.nextAttackMult) {
+      baseDmg = Math.round(baseDmg * this.nextAttackMult);
+      this.nextAttackMult = null;
+      this.invisible = false;
+    }
 
     // 应用科技加成
     if (techs && techs.length > 0) {
@@ -1185,10 +1231,11 @@ class AIBrainV2 {
     this.army = this.army.filter(u => !u.dead && (!u.isMirror || u.hp > 0));
     // 重新分配索引
     this.army.forEach((u, i) => { u.idx = i; });
-    // 检查英雄死亡
+    // 检查英雄死亡（下一回合自动复活）
     if (this.hero && this.hero.dead) {
       this.hasHero = false;
       this.hero = null;
+      // 英雄将在 takeTurn 的第1步自动复活
     }
   }
 
@@ -1216,34 +1263,29 @@ class AIBrainV2 {
     if (this.turnCount > 10) this.strategyPhase = "late";
     else if (this.turnCount > 5) this.strategyPhase = "mid";
 
-    // 1. 考虑研发英雄训练（如果有英雄类型）
-    let heroTrained = null;
-    if (this.heroType && !this.resources.techs.includes("hero_training")) {
-      const state = this.resources.getState();
-      if (state.gold >= TECHS.hero_training.cost) {
-        this.resources.researchTech("hero_training");
-        heroTrained = "hero_training";
+    // 1. 生成/复活英雄（免费，无需科技）
+    let heroSpawned = null;
+    let heroRevived = false;
+    if (this.heroType && !this.hasHero) {
+      heroRevived = this.turnCount > 1; // 非首回合即为复活
+      this.hero = new UnitV2(this.heroType, this.name, 0, true);
+      // 如果之前有英雄死亡，复活时半血
+      if (heroRevived) {
+        this.hero.hp = Math.floor(this.hero.maxHp * 0.5);
       }
+      this.hero._marked = true;
+      this.army.unshift(this.hero);
+      this.hasHero = true;
+      heroSpawned = this.heroType;
     }
 
     // 2. 考虑科技升级
     const techChoice = this.decideTech(enemyArmy ? this.analyzeEnemy(enemyArmy) : null);
-    if (techChoice && techChoice !== heroTrained) {
+    if (techChoice) {
       this.resources.researchTech(techChoice);
     }
 
-    // 3. 生成英雄（第一回合，如果有英雄类型）
-    let heroSpawned = null;
-    if (this.heroType && !this.hasHero && this.resources.techs.includes("hero_training")) {
-      if (this.resources.purchase(this.heroType, true)) {
-        this.hero = new UnitV2(this.heroType, this.name, 0, true);
-        this.army.unshift(this.hero);
-        this.hasHero = true;
-        heroSpawned = this.heroType;
-      }
-    }
-
-    // 4. 生产单位（场上单位上限12，不含英雄）
+    // 3. 生产单位（场上单位上限12，不含英雄）
     const livingCount = this.army.filter(u => !u.dead).length;
     if (livingCount < 13) {
       const newUnits = this.decideProduction(enemyArmy);
@@ -1254,18 +1296,18 @@ class AIBrainV2 {
         this.army.push(unit);
       });
       return {
-        techResearched: techChoice || heroTrained,
-        heroTrained: heroTrained,
+        techResearched: techChoice,
         heroSpawned: heroSpawned,
+        heroRevived: heroRevived,
         unitsProduced: newUnits,
         resources: this.resources.getState()
       };
     }
 
     return {
-      techResearched: techChoice || heroTrained,
-      heroTrained: heroTrained,
+      techResearched: techChoice,
       heroSpawned: heroSpawned,
+      heroRevived: heroRevived,
       unitsProduced: [],
       resources: this.resources.getState()
     };

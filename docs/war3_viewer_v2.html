@@ -989,16 +989,18 @@ function startIncomeTimer() {
       showTechToast("🔴 红方", techName);
     }
 
-    // 记录英雄诞生
+    // 记录英雄诞生/复活
     if (blueTurn.heroSpawned) {
       const heroInfo = HEROES[blueTurn.heroSpawned];
-      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔵 ${heroInfo.icon} ${heroInfo.name} 出场！</div>`;
-      showHeroToast("🔵", heroInfo.name, heroInfo.icon);
+      const action = blueTurn.heroRevived ? '复活' : '出场';
+      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔵 ${heroInfo.icon} ${heroInfo.name} ${action}！</div>`;
+      showHeroToast("🔵", heroInfo.name + (blueTurn.heroRevived ? " 复活" : ""), heroInfo.icon);
     }
     if (redTurn.heroSpawned) {
       const heroInfo = HEROES[redTurn.heroSpawned];
-      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔴 ${heroInfo.icon} ${heroInfo.name} 出场！</div>`;
-      showHeroToast("🔴", heroInfo.name, heroInfo.icon);
+      const action = redTurn.heroRevived ? '复活' : '出场';
+      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔴 ${heroInfo.icon} ${heroInfo.name} ${action}！</div>`;
+      showHeroToast("🔴", heroInfo.name + (redTurn.heroRevived ? " 复活" : ""), heroInfo.icon);
     }
 
     // 记录新单位
