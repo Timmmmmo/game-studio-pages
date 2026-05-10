@@ -306,6 +306,8 @@
     .tier-1 { background: rgba(149,165,166,0.3); color: #95a5a6; }
     .tier-2 { background: rgba(52,152,219,0.3); color: #3498db; }
     .tier-3 { background: rgba(243,156,18,0.3); color: #f39c12; }
+    .tier-4 { background: rgba(243,156,18,0.5); color: #f39c12; border: 1px solid #f39c12; }
+    .unit-card.hero { border: 2px solid #f39c12; box-shadow: 0 0 15px rgba(243,156,18,0.4); }
 
     .unit-types { font-size: 0.7rem; color: #666; margin-top: 2px; }
     .hp-container { margin-top: 4px; }
@@ -564,6 +566,35 @@
       color: #f39c12;
     }
 
+    .hero-toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: linear-gradient(135deg, #4a3000, #2a1800);
+      border: 2px solid #f39c12;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      color: #fff;
+      z-index: 3000;
+      opacity: 0;
+      transition: all 0.3s ease-out;
+      box-shadow: 0 4px 20px rgba(243, 156, 18, 0.5);
+      pointer-events: none;
+    }
+    .hero-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .hero-toast-icon {
+      font-size: 1.3rem;
+      margin-right: 6px;
+    }
+    .hero-toast strong {
+      color: #f39c12;
+    }
+
     /* === 响应式 === */
     @media (max-width: 700px) {
       .arena-row { flex-direction: column; }
@@ -581,7 +612,7 @@
 
 <div class="header">
   <h1>⚔️ 魔兽兵种对战 V2</h1>
-  <p class="subtitle">基地攻防 · 实时收入 · 科技升级 · AI策略</p>
+  <p class="subtitle">基地攻防 · 实时收入 · 科技升级 · 英雄系统</p>
 </div>
 
 <!-- 资源条 -->
@@ -724,7 +755,7 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=2.4.0-20260510"></script>
+<script src="war3_data_v2.js?v=2.5.0-20260510"></script>
 <script>
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -737,16 +768,25 @@ let incomeTimerId = null;
 let incomeTimerStart = 0;
 const INCOME_INTERVAL = 2000; // 2秒收入周期
 
+// ==================== 英雄选择配置 ====================
+const BLUE_HERO_TYPE = "strength_hero";   // 蓝方使用力量型英雄
+const RED_HERO_TYPE = "agility_hero";     // 红方使用敏捷型英雄
+
 // ==================== 初始化 ====================
 function init() {
-  blueBrain = new AIBrainV2("blue", "balanced");
-  redBrain = new AIBrainV2("red", "aggressive");
+  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
+  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
   updateResourceDisplay();
   updateBaseDisplay();
   renderArmy([], "blueArmy");
   renderArmy([], "redArmy");
-  document.getElementById("blueTitle").textContent = "🔵 " + getPersonalityName(blueBrain.personality);
-  document.getElementById("redTitle").textContent = "🔴 " + getPersonalityName(redBrain.personality);
+  document.getElementById("blueTitle").textContent = "🔵 " + getPersonalityName(blueBrain.personality) + " | " + getHeroName(BLUE_HERO_TYPE);
+  document.getElementById("redTitle").textContent = "🔴 " + getPersonalityName(redBrain.personality) + " | " + getHeroName(RED_HERO_TYPE);
+}
+
+
+function getHeroName(type) {
+  return HEROES[type] ? HEROES[type].icon + " " + HEROES[type].name : "无";
 }
 
 function updateSpeed() {
@@ -783,9 +823,10 @@ function renderArmy(units, containerId, animations = {}) {
 
     const isNewUnit = u._newSpawn ? "new-unit" : "";
     if (u._newSpawn) u._newSpawn = false; // 只高亮一次
+    const isHero = u.isHero ? "hero" : "";
 
     return `
-      <div class="unit-card ${animClass} ${isNewUnit}" id="unit-${u.owner}-${u.idx}">
+      <div class="unit-card ${animClass} ${isNewUnit} ${isHero}" id="unit-${u.owner}-${u.idx}">
         <div class="unit-icon">${u.icon}</div>
         <div class="unit-info">
           <div class="unit-name-row">
@@ -912,6 +953,18 @@ function startIncomeTimer() {
       const techName = TECHS[redTurn.techResearched]?.name || redTurn.techResearched;
       logContainer.innerHTML += `<div class="log-entry log-tech">🔴 研发: ${techName}</div>`;
       showTechToast("🔴 红方", techName);
+    }
+
+    // 记录英雄诞生
+    if (blueTurn.heroSpawned) {
+      const heroInfo = HEROES[blueTurn.heroSpawned];
+      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔵 ${heroInfo.icon} ${heroInfo.name} 出场！</div>`;
+      showHeroToast("🔵", heroInfo.name, heroInfo.icon);
+    }
+    if (redTurn.heroSpawned) {
+      const heroInfo = HEROES[redTurn.heroSpawned];
+      logContainer.innerHTML += `<div class="log-entry log-hero">⭐ 🔴 ${heroInfo.icon} ${heroInfo.name} 出场！</div>`;
+      showHeroToast("🔴", heroInfo.name, heroInfo.icon);
     }
 
     // 记录新单位
@@ -1359,6 +1412,23 @@ function showTechToast(side, techName) {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+// ==================== 英雄登场浮窗提示 ====================
+function showHeroToast(side, heroName, heroIcon) {
+  const toast = document.createElement("div");
+  toast.className = "hero-toast";
+  toast.innerHTML = `<span class="hero-toast-icon">${heroIcon}</span> ${side} <strong>${heroName}</strong> 出场！`;
+  document.body.appendChild(toast);
+  
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+  
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
 }
 
 // 点击背景关闭弹窗
