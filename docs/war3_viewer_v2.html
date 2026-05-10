@@ -559,24 +559,24 @@
   <div class="resource-panel blue">
     <span class="resource-icon">💰</span>
     <div class="resource-info">
-      <div class="resource-value" id="blueGold">200</div>
-      <div class="resource-income">+<span id="blueGoldIncome">20</span>/5秒</div>
+      <div class="resource-value" id="blueGold">500</div>
+      <div class="resource-income">+<span id="blueGoldIncome">40</span>/2秒</div>
     </div>
     <div class="resource-info">
-      <div class="resource-value" id="blueLumber">100</div>
-      <div class="resource-income">+<span id="blueLumberIncome">10</span>/5秒</div>
+      <div class="resource-value" id="blueLumber">500</div>
+      <div class="resource-income">+<span id="blueLumberIncome">20</span>/2秒</div>
     </div>
     <div class="resource-label">🔵 蓝方资源</div>
   </div>
   <div class="resource-panel red">
     <span class="resource-icon">💰</span>
     <div class="resource-info">
-      <div class="resource-value" id="redGold">200</div>
-      <div class="resource-income">+<span id="redGoldIncome">20</span>/5秒</div>
+      <div class="resource-value" id="redGold">500</div>
+      <div class="resource-income">+<span id="redGoldIncome">40</span>/2秒</div>
     </div>
     <div class="resource-info">
-      <div class="resource-value" id="redLumber">100</div>
-      <div class="resource-income">+<span id="redLumberIncome">10</span>/5秒</div>
+      <div class="resource-value" id="redLumber">500</div>
+      <div class="resource-income">+<span id="redLumberIncome">20</span>/2秒</div>
     </div>
     <div class="resource-label">🔴 红方资源</div>
   </div>
@@ -591,7 +591,7 @@
       <div class="base-hp-bar">
         <div class="base-hp-fill blue-fill" id="blueBaseHpFill" style="width:100%"></div>
       </div>
-      <div class="base-hp-text"><span id="blueBaseHp">1000</span>/1000 <span class="base-armor">🛡️城甲20</span></div>
+      <div class="base-hp-text"><span id="blueBaseHp">3000</span>/3000 <span class="base-armor">🛡️城甲20</span></div>
     </div>
   </div>
   <div class="base-panel red">
@@ -601,7 +601,7 @@
       <div class="base-hp-bar">
         <div class="base-hp-fill red-fill" id="redBaseHpFill" style="width:100%"></div>
       </div>
-      <div class="base-hp-text"><span id="redBaseHp">1000</span>/1000 <span class="base-armor">🛡️城甲20</span></div>
+      <div class="base-hp-text"><span id="redBaseHp">3000</span>/3000 <span class="base-armor">🛡️城甲20</span></div>
     </div>
   </div>
 </div>
@@ -694,7 +694,7 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=2.3.0-20260510"></script>
+<script src="war3_data_v2.js?v=2.4.0-20260510"></script>
 <script>
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -705,7 +705,7 @@ let roundNum = 0;
 let actionCount = 0;
 let incomeTimerId = null;
 let incomeTimerStart = 0;
-const INCOME_INTERVAL = 5000; // 5秒收入周期
+const INCOME_INTERVAL = 2000; // 2秒收入周期
 
 // ==================== 初始化 ====================
 function init() {
@@ -921,7 +921,7 @@ function stopIncomeTimer() {
 function updateTimerUI() {
   if (!battleRunning || !incomeTimerStart) {
     document.getElementById("timerFill").style.width = "0%";
-    document.getElementById("timerText").textContent = "5秒";
+    document.getElementById("timerText").textContent = "2秒";
     return;
   }
   const elapsed = Date.now() - incomeTimerStart;
@@ -1024,16 +1024,7 @@ async function startBattle() {
       break;
     }
 
-    // 超过200回合强制结束
-    if (roundNum > 200) {
-      battleRunning = false;
-      stopIncomeTimer();
-      const winner = blueBrain.base.hp > redBrain.base.hp ? "蓝方" : redBrain.base.hp > blueBrain.base.hp ? "红方" : "平局";
-      const cls = winner === "蓝方" ? "result-blue" : winner === "红方" ? "result-red" : "result-blue";
-      showBanner(`⏰ 时间到！${winner} 获胜！(基地剩余血量对比)`, cls);
-      document.getElementById("btnBattle").disabled = false;
-      break;
-    }
+    // 无时间限制，仅基地被摧毁时结束
 
     updateTimerUI();
     await sleep(gameSpeed);

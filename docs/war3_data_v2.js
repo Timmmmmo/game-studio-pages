@@ -1,8 +1,8 @@
 // ==================== 魔兽兵种对战增强版 ====================
 // 包含：技能系统、动画效果、资源管理、科技升级
-// Updated: 2026-05-10 v2.3.0
+// Updated: 2026-05-10 v2.4.0
 
-const VERSION = "2.3.0";
+const VERSION = "2.4.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -246,7 +246,7 @@ const UNITS_V2 = {
     goldCost: 100,
     lumberCost: 0,
     hp: 500,
-    damage: 25,
+    damage: 13,
     attackType: "normal",
     armorType: "medium",
     armor: 5,
@@ -266,7 +266,7 @@ const UNITS_V2 = {
     goldCost: 120,
     lumberCost: 0,
     hp: 300,
-    damage: 20,
+    damage: 10,
     attackType: "pierce",
     armorType: "light",
     armor: 0,
@@ -286,7 +286,7 @@ const UNITS_V2 = {
     goldCost: 130,
     lumberCost: 20,
     hp: 280,
-    damage: 35,
+    damage: 18,
     attackType: "magic",
     armorType: "none",
     armor: 0,
@@ -306,7 +306,7 @@ const UNITS_V2 = {
     goldCost: 180,
     lumberCost: 20,
     hp: 900,
-    damage: 40,
+    damage: 20,
     attackType: "normal",
     armorType: "heavy",
     armor: 10,
@@ -326,7 +326,7 @@ const UNITS_V2 = {
     goldCost: 150,
     lumberCost: 30,
     hp: 400,
-    damage: 70,
+    damage: 35,
     attackType: "siege",
     armorType: "fortified",
     armor: 8,
@@ -347,7 +347,7 @@ const UNITS_V2 = {
     goldCost: 120,
     lumberCost: 20,
     hp: 350,
-    damage: 30,
+    damage: 15,
     attackType: "pierce",
     armorType: "medium",
     armor: 3,
@@ -367,7 +367,7 @@ const UNITS_V2 = {
     goldCost: 140,
     lumberCost: 20,
     hp: 320,
-    damage: 15,
+    damage: 8,
     attackType: "magic",
     armorType: "light",
     armor: 1,
@@ -387,7 +387,7 @@ const UNITS_V2 = {
     goldCost: 200,
     lumberCost: 20,
     hp: 800,
-    damage: 30,
+    damage: 15,
     attackType: "normal",
     armorType: "heavy",
     armor: 8,
@@ -408,7 +408,7 @@ const UNITS_V2 = {
     goldCost: 250,
     lumberCost: 30,
     hp: 600,
-    damage: 50,
+    damage: 25,
     attackType: "normal",
     armorType: "light",
     armor: 4,
@@ -429,7 +429,7 @@ const UNITS_V2 = {
     goldCost: 280,
     lumberCost: 40,
     hp: 1000,
-    damage: 45,
+    damage: 23,
     attackType: "normal",
     armorType: "heavy",
     armor: 12,
@@ -450,7 +450,7 @@ const UNITS_V2 = {
     goldCost: 260,
     lumberCost: 40,
     hp: 400,
-    damage: 40,
+    damage: 20,
     attackType: "magic",
     armorType: "none",
     armor: 2,
@@ -471,7 +471,7 @@ const UNITS_V2 = {
     goldCost: 300,
     lumberCost: 50,
     hp: 700,
-    damage: 35,
+    damage: 18,
     attackType: "normal",
     armorType: "heavy",
     armor: 6,
@@ -666,7 +666,7 @@ class UnitV2 {
 
 // ==================== 资源管理系统 ====================
 class ResourceManager {
-  constructor(startingGold = 200, startingLumber = 100) {
+  constructor(startingGold = 500, startingLumber = 500) {
     this.gold = startingGold;
     this.lumber = startingLumber;
     this.goldPerTurn = 40;
@@ -753,7 +753,7 @@ class AIBrainV2 {
   constructor(name, personality = "balanced") {
     this.name = name;
     this.personality = personality; // aggressive, defensive, balanced, economic
-    this.resources = new ResourceManager(200, 100);
+    this.resources = new ResourceManager(500, 500);
     this.army = [];
     this.base = { hp: 3000, maxHp: 3000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
     this.strategyPhase = "early"; // early, mid, late
