@@ -534,6 +534,36 @@
     .counter-table td.negative { color: #e74c3c; }
     .counter-table td.neutral { color: #888; }
 
+    /* === 科技升级浮窗 === */
+    .tech-toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: linear-gradient(135deg, #2c1654, #1a0a2e);
+      border: 2px solid #9b59b6;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      color: #fff;
+      z-index: 3000;
+      opacity: 0;
+      transition: all 0.3s ease-out;
+      box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4);
+      pointer-events: none;
+    }
+    .tech-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .tech-toast-icon {
+      font-size: 1.2rem;
+      margin-right: 6px;
+    }
+    .tech-toast strong {
+      color: #f39c12;
+    }
+
     /* === 响应式 === */
     @media (max-width: 700px) {
       .arena-row { flex-direction: column; }
@@ -874,10 +904,14 @@ function startIncomeTimer() {
 
     // 记录科技
     if (blueTurn.techResearched) {
-      logContainer.innerHTML += `<div class="log-entry log-tech">🔵 研发: ${TECHS[blueTurn.techResearched]?.name}</div>`;
+      const techName = TECHS[blueTurn.techResearched]?.name || blueTurn.techResearched;
+      logContainer.innerHTML += `<div class="log-entry log-tech">🔵 研发: ${techName}</div>`;
+      showTechToast("🔵 蓝方", techName);
     }
     if (redTurn.techResearched) {
-      logContainer.innerHTML += `<div class="log-entry log-tech">🔴 研发: ${TECHS[redTurn.techResearched]?.name}</div>`;
+      const techName = TECHS[redTurn.techResearched]?.name || redTurn.techResearched;
+      logContainer.innerHTML += `<div class="log-entry log-tech">🔴 研发: ${techName}</div>`;
+      showTechToast("🔴 红方", techName);
     }
 
     // 记录新单位
@@ -1306,6 +1340,25 @@ function showTechTree() {
 
 function closeTechModal() {
   document.getElementById("techModal").style.display = "none";
+}
+
+// ==================== 科技升级浮窗提示 ====================
+function showTechToast(side, techName) {
+  const toast = document.createElement("div");
+  toast.className = "tech-toast";
+  toast.innerHTML = `<span class="tech-toast-icon">🔬</span> ${side} 研发 <strong>${techName}</strong>`;
+  document.body.appendChild(toast);
+  
+  // 触发动画
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+  
+  // 3秒后移除
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 // 点击背景关闭弹窗
