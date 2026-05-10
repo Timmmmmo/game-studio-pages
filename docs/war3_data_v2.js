@@ -1,8 +1,8 @@
 // ==================== 魔兽兵种对战增强版 ====================
 // 包含：技能系统、动画效果、资源管理、科技升级
-// Updated: 2026-05-10 v2.4.0
+// Updated: 2026-05-10 v2.5.0 - 英雄系统
 
-const VERSION = "2.4.0";
+const VERSION = "2.5.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -160,6 +160,152 @@ const SKILLS = {
       }
       return { revived: false };
     }
+  },
+
+  // ===== 力量英雄技能 =====
+  storm_bolt: {
+    name: "风暴之锤",
+    type: "active",
+    desc: "投掷魔法锤眩晕目标2秒",
+    icon: "🔨",
+    cooldown: 4,
+    manaCost: 70,
+    effect: (unit, enemies) => {
+      const target = enemies.filter(e => !e.dead)[0];
+      if (target) {
+        target.stunned = 2;
+        target.hp -= 100;
+        return { targets: 1, damage: 100, stunned: true };
+      }
+      return { targets: 0 };
+    }
+  },
+
+  thunder_clap: {
+    name: "雷霆一击",
+    type: "active",
+    desc: "重击地面，对周围敌人造成80伤害并减速",
+    icon: "⛈️",
+    cooldown: 4,
+    manaCost: 60,
+    effect: (unit, enemies) => {
+      const targets = enemies.filter(e => !e.dead);
+      targets.forEach(t => {
+        t.hp -= 80;
+        t.slowed = 3;
+      });
+      return { targets: targets.length, damage: 80 };
+    }
+  },
+
+  // ===== 敏捷英雄技能 =====
+  mirror_image: {
+    name: "镜像分身",
+    type: "active",
+    desc: "创造2个分身迷惑敌人",
+    icon: "👥",
+    cooldown: 8,
+    manaCost: 120,
+    effect: (unit, allies) => {
+      // 创建2个镜像分身
+      for (let i = 0; i < 2; i++) {
+        const clone = {
+          ...unit,
+          type: unit.type + '_mirror',
+          name: unit.name + '(镜像)',
+          icon: unit.icon,
+          hp: Math.floor(unit.hp * 0.3),
+          max_hp: Math.floor(unit.max_hp * 0.3),
+          damage: Math.floor(unit.damage * 0.2),
+          isMirror: true,
+          dead: false
+        };
+        allies.push(clone);
+      }
+      return { targets: 2, clone: true };
+    }
+  },
+
+  wind_walk: {
+    name: "疾风步",
+    type: "active",
+    desc: "隐身并下次攻击造成150%伤害",
+    icon: "💨",
+    cooldown: 5,
+    manaCost: 80,
+    effect: (unit) => {
+      unit.invisible = true;
+      unit.nextAttackMult = 1.5;
+      return { buff: true };
+    }
+  },
+
+  // ===== 智力英雄技能 =====
+  summon_water_elemental: {
+    name: "召唤水元素",
+    type: "active",
+    desc: "召唤水元素协助作战",
+    icon: "🌊",
+    cooldown: 15,
+    manaCost: 150,
+    effect: (unit, allies) => {
+      const elemental = {
+        name: "水元素",
+        icon: "💧",
+        hp: 400,
+        max_hp: 400,
+        damage: 25,
+        attackType: "magic",
+        armorType: "light",
+        armor: 2,
+        speed: 280,
+        range: "ranged",
+        mana: 0,
+        maxMana: 0,
+        skills: [],
+        isSummon: true,
+        owner: unit.owner,
+        dead: false
+      };
+      allies.push(elemental);
+      return { targets: 1, summon: true };
+    }
+  },
+
+  blazing_weapon: {
+    name: "辉煌光环",
+    type: "aura",
+    desc: "周围友军攻击速度+30%，回蓝+5/秒",
+    icon: "✨",
+    radius: 3,
+    effect: (allies) => {
+      allies.forEach(u => {
+        u.attackSpeedBonus = (u.attackSpeedBonus || 0) + 30;
+        if (u.maxMana > 0) {
+          u.manaRegen = (u.manaRegen || 0) + 5;
+        }
+      });
+    }
+  },
+
+  // ===== 通用英雄技能 =====
+  hero_ultimate: {
+    name: "英雄大招",
+    type: "active",
+    desc: "消耗全部魔法值，造成双倍伤害",
+    icon: "🌟",
+    cooldown: 10,
+    manaCost: 200,
+    effect: (unit, enemies) => {
+      const manaCost = unit.mana;
+      const target = enemies.filter(e => !e.dead)[0];
+      if (target) {
+        target.hp -= manaCost;
+        unit.mana = 0;
+        return { targets: 1, damage: manaCost, ultimate: true };
+      }
+      return { targets: 0 };
+    }
   }
 };
 
@@ -233,6 +379,88 @@ const TECHS = {
     requires: ["melee_weapons", "armor_plating"],
     effect: "解锁英雄单位",
     type: "military"
+  }
+};
+
+// ==================== 英雄系统 ====================
+const HEROES = {
+  // 力量型英雄 - 山丘之王
+  strength_hero: {
+    name: "山丘之王",
+    icon: "⚔️",
+    cost: 0,
+    goldCost: 0,
+    lumberCost: 0,
+    hp: 1200,      // 高血量
+    max_hp: 1200,
+    damage: 35,     // 高攻击力
+    attackType: "hero",
+    armorType: "hero",
+    armor: 10,
+    effectiveArmor: 10,
+    speed: 180,     // 慢
+    attackSpeed: 1.0,  // 慢攻速
+    range: "melee",
+    mana: 200,
+    maxMana: 200,
+    manaRegen: 3,
+    skills: ["storm_bolt", "thunder_clap"],
+    tier: 4,
+    attrType: "strength",
+    desc: "力量型英雄：超高血量，高伤害，慢攻速"
+  },
+
+
+  // 敏捷型英雄 - 剑圣
+  agility_hero: {
+    name: "剑圣",
+    icon: "🗡️",
+    cost: 0,
+    goldCost: 0,
+    lumberCost: 0,
+    hp: 700,       // 中等血量
+    max_hp: 700,
+    damage: 30,    // 高攻击力
+    attackType: "hero",
+    armorType: "hero",
+    armor: 5,
+    effectiveArmor: 5,
+    speed: 380,    // 快
+    attackSpeed: 1.8,  // 快攻速
+    range: "melee",
+    mana: 150,
+    maxMana: 150,
+    manaRegen: 2,
+    skills: ["mirror_image", "wind_walk"],
+    tier: 4,
+    attrType: "agility",
+    desc: "敏捷型英雄：较快攻速，高闪避，高暴击"
+  },
+
+  // 智力型英雄 - 大法师
+  intelligence_hero: {
+    name: "大法师",
+    icon: "🔮",
+    cost: 0,
+    goldCost: 0,
+    lumberCost: 60,
+    hp: 500,       // 低血量
+    max_hp: 500,
+    damage: 25,    // 中等攻击力
+    attackType: "hero",
+    armorType: "hero",
+    armor: 3,
+    effectiveArmor: 3,
+    speed: 300,
+    attackSpeed: 1.2,
+    range: "ranged",
+    mana: 300,
+    maxMana: 300,
+    manaRegen: 5,  // 高回蓝
+    skills: ["summon_water_elemental", "blazing_weapon"],
+    tier: 4,
+    attrType: "intelligence",
+    desc: "智力型英雄：召唤物，辅助治疗，范围伤害"
   }
 };
 
@@ -488,8 +716,8 @@ const UNITS_V2 = {
 
 // ==================== 单位类（增强版） ====================
 class UnitV2 {
-  constructor(type, owner, idx) {
-    const t = UNITS_V2[type];
+  constructor(type, owner, idx, fromHeroes = false) {
+    const t = fromHeroes ? HEROES[type] : UNITS_V2[type];
     if (!t) throw new Error(`Unknown unit type: ${type}`);
 
     Object.assign(this, t);
@@ -502,11 +730,12 @@ class UnitV2 {
     this.skillCooldowns = {};
     this.slowed = 0;
     this.tempArmor = 0;
+    this.isHero = fromHeroes;
 
     // 初始化技能冷却
-    t.skills.forEach(s => {
-      this.skillCooldowns[s] = 0;
-    });
+    if (t.skills) {
+      t.skills.forEach(s => { this.skillCooldowns[s] = 0; });
+    }
   }
 
   get effectiveArmor() {
@@ -515,6 +744,13 @@ class UnitV2 {
 
   get effectiveSpeed() {
     return this.slowed > 0 ? Math.floor(this.speed * 0.5) : this.speed;
+  }
+
+  // 攻击冷却时间（基于攻速）
+  get attackCooldown() {
+    const baseCooldown = 1000;
+    const atkSpeed = this.attackSpeed || 1.0;
+    return Math.floor(baseCooldown / atkSpeed);
   }
 
   findTarget(enemies) {
@@ -680,18 +916,20 @@ class ResourceManager {
     this.lumber += this.lumberPerTurn;
   }
 
-  canAfford(unitType) {
-    const u = UNITS_V2[unitType];
+  // canAfford 支持兵种和英雄
+  canAfford(type, isHero = false) {
+    const u = isHero ? HEROES[type] : UNITS_V2[type];
     if (!u) return false;
     return this.gold >= u.goldCost && this.lumber >= u.lumberCost;
   }
 
-  purchase(unitType) {
-    const u = UNITS_V2[unitType];
-    if (!u || !this.canAfford(unitType)) return false;
+  // purchase 支持兵种和英雄
+  purchase(type, isHero = false) {
+    const u = isHero ? HEROES[type] : UNITS_V2[type];
+    if (!u || !this.canAfford(type, isHero)) return false;
 
-    // 检查科技需求
-    if (u.requires) {
+    // 检查科技需求（兵种）
+    if (!isHero && u.requires) {
       for (const req of u.requires) {
         if (!this.techs.includes(req)) return false;
       }
@@ -750,9 +988,12 @@ class ResourceManager {
 
 // ==================== AI策略（增强版） ====================
 class AIBrainV2 {
-  constructor(name, personality = "balanced") {
+  constructor(name, personality = "balanced", heroType = null) {
     this.name = name;
     this.personality = personality; // aggressive, defensive, balanced, economic
+    this.heroType = heroType; // strength_hero, agility_hero, intelligence_hero
+    this.hasHero = false;
+    this.hero = null;
     this.resources = new ResourceManager(500, 500);
     this.army = [];
     this.base = { hp: 3000, maxHp: 3000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
@@ -769,7 +1010,8 @@ class AIBrainV2 {
       attackDistribution: {},
       hasHeroes: false,
       hasHealer: false,
-      hasAOE: false
+      hasAOE: false,
+      hasSummoner: false
     };
 
     enemyArmy.forEach(u => {
@@ -778,9 +1020,10 @@ class AIBrainV2 {
       analysis.armorDistribution[u.armorType] = (analysis.armorDistribution[u.armorType] || 0) + 1;
       analysis.attackDistribution[u.attackType] = (analysis.attackDistribution[u.attackType] || 0) + 1;
 
-      if (u.tier === 3) analysis.hasHeroes = true;
-      if (u.skills.includes("healing_wave")) analysis.hasHealer = true;
-      if (u.skills.includes("blizzard") || u.skills.includes("thunder_clap")) analysis.hasAOE = true;
+      if (u.isHero) analysis.hasHeroes = true;
+      if (u.skills && u.skills.includes("healing_wave")) analysis.hasHealer = true;
+      if (u.skills && (u.skills.includes("blizzard") || u.skills.includes("thunder_clap"))) analysis.hasAOE = true;
+      if (u.skills && u.skills.includes("summon_water_elemental")) analysis.hasSummoner = true;
     });
 
     return analysis;
@@ -895,8 +1138,15 @@ class AIBrainV2 {
         // 策略加成
         switch (this.personality) {
           case "aggressive":
-            if (unit.attackType === "normal") score += 20;
+            // 激进Rush策略：前期快速爆兵，或升级T2出强力兵种
+            if (unit.attackType === "normal") score += 25;
+            if (unit.tier === 1 && this.strategyPhase === "early") score += 40; // 前期爆兵
             if (unit.tier === 3) score += 30;
+            // 考虑T2兵种（需要足够资源支撑）
+            if (unit.tier === 2) {
+              const state = this.resources.getState();
+              if (state.gold > 600) score += 15; // 有余钱才出T2
+            }
             break;
           case "defensive":
             if (unit.armorType === "heavy") score += 20;
@@ -932,14 +1182,32 @@ class AIBrainV2 {
 
   // 清理死亡单位（释放索引空间）
   cleanupDead() {
-    this.army = this.army.filter(u => !u.dead);
+    this.army = this.army.filter(u => !u.dead && (!u.isMirror || u.hp > 0));
     // 重新分配索引
     this.army.forEach((u, i) => { u.idx = i; });
+    // 检查英雄死亡
+    if (this.hero && this.hero.dead) {
+      this.hasHero = false;
+      this.hero = null;
+    }
+  }
+
+  // 决定是否研发英雄训练
+  shouldResearchHeroTraining() {
+    if (this.heroType && !this.resources.techs.includes("hero_training")) {
+      const state = this.resources.getState();
+      const heroTrainingCost = TECHS.hero_training.cost;
+      if (state.gold >= heroTrainingCost) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // 执行回合（每次收入周期调用一次）
   takeTurn(enemyArmy) {
     this.turnCount++;
+
 
     // 清理死亡单位
     this.cleanupDead();
@@ -948,15 +1216,36 @@ class AIBrainV2 {
     if (this.turnCount > 10) this.strategyPhase = "late";
     else if (this.turnCount > 5) this.strategyPhase = "mid";
 
-    // 1. 考虑科技升级
+    // 1. 考虑研发英雄训练（如果有英雄类型）
+    let heroTrained = null;
+    if (this.heroType && !this.resources.techs.includes("hero_training")) {
+      const state = this.resources.getState();
+      if (state.gold >= TECHS.hero_training.cost) {
+        this.resources.researchTech("hero_training");
+        heroTrained = "hero_training";
+      }
+    }
+
+    // 2. 考虑科技升级
     const techChoice = this.decideTech(enemyArmy ? this.analyzeEnemy(enemyArmy) : null);
-    if (techChoice) {
+    if (techChoice && techChoice !== heroTrained) {
       this.resources.researchTech(techChoice);
     }
 
-    // 2. 生产单位（场上单位上限12）
+    // 3. 生成英雄（第一回合，如果有英雄类型）
+    let heroSpawned = null;
+    if (this.heroType && !this.hasHero && this.resources.techs.includes("hero_training")) {
+      if (this.resources.purchase(this.heroType, true)) {
+        this.hero = new UnitV2(this.heroType, this.name, 0, true);
+        this.army.unshift(this.hero);
+        this.hasHero = true;
+        heroSpawned = this.heroType;
+      }
+    }
+
+    // 4. 生产单位（场上单位上限12，不含英雄）
     const livingCount = this.army.filter(u => !u.dead).length;
-    if (livingCount < 12) {
+    if (livingCount < 13) {
       const newUnits = this.decideProduction(enemyArmy);
       newUnits.forEach(u => {
         const unit = new UnitV2(u, this.name, this.army.length);
@@ -965,14 +1254,18 @@ class AIBrainV2 {
         this.army.push(unit);
       });
       return {
-        techResearched: techChoice,
+        techResearched: techChoice || heroTrained,
+        heroTrained: heroTrained,
+        heroSpawned: heroSpawned,
         unitsProduced: newUnits,
         resources: this.resources.getState()
       };
     }
 
     return {
-      techResearched: techChoice,
+      techResearched: techChoice || heroTrained,
+      heroTrained: heroTrained,
+      heroSpawned: heroSpawned,
       unitsProduced: [],
       resources: this.resources.getState()
     };
@@ -988,6 +1281,7 @@ if (typeof module !== 'undefined' && module.exports) {
     DAMAGE_TABLE,
     SKILLS,
     TECHS,
+    HEROES,
     UNITS_V2,
     UnitV2,
     ResourceManager,
@@ -1003,6 +1297,7 @@ if (typeof window !== 'undefined') {
   window.DAMAGE_TABLE = DAMAGE_TABLE;
   window.SKILLS = SKILLS;
   window.TECHS = TECHS;
+  window.HEROES = HEROES;
   window.UNITS_V2 = UNITS_V2;
   window.UnitV2 = UnitV2;
   window.ResourceManager = ResourceManager;

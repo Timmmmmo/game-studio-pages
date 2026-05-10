@@ -109,22 +109,50 @@
     .tech-panel {
       display: flex;
       justify-content: center;
-      gap: 10px;
-      padding: 8px;
-      background: rgba(0,0,0,0.2);
+      gap: 0;
+      padding: 10px 15px;
+      background: rgba(0,0,0,0.25);
       flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .tech-side {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 0 15px;
+    }
+    .tech-side-label {
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .tech-side-label.blue { background: rgba(52,152,219,0.3); color: #3498db; }
+    .tech-side-label.red { background: rgba(231,76,60,0.3); color: #e74c3c; }
+    .tech-side.badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 26px;
+      align-items: center;
     }
     .tech-badge {
-      padding: 4px 10px;
-      background: rgba(155,89,182,0.2);
-      border: 1px solid rgba(155,89,182,0.4);
+      padding: 5px 12px;
+      background: rgba(155,89,182,0.25);
+      border: 1px solid rgba(155,89,182,0.5);
       border-radius: 6px;
-      font-size: 0.75rem;
-      color: #9b59b6;
+      font-size: 0.8rem;
+      color: #d4a5e8;
+      white-space: nowrap;
     }
-    .tech-badge.active {
-      background: rgba(155,89,182,0.4);
-      color: #fff;
+    .tech-badge.blue-tech { border-color: rgba(52,152,219,0.5); background: rgba(52,152,219,0.15); color: #7ec8f0; }
+    .tech-badge.red-tech { border-color: rgba(231,76,60,0.5); background: rgba(231,76,60,0.15); color: #f08c7c; }
+    .tech-badge.active { background: rgba(155,89,182,0.5); color: #fff; }
+    .tech-divider {
+      width: 2px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent);
+      margin: 0 5px;
     }
 
     /* === 控制区 === */
@@ -669,9 +697,15 @@
 
 <!-- 科技面板 -->
 <div class="tech-panel">
-  <div id="blueTechs" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-  <div style="color:#555;margin:0 10px;">|</div>
-  <div id="redTechs" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+  <div class="tech-side">
+    <div class="tech-side-label blue">🔵 蓝方科技</div>
+    <div id="blueTechs" class="tech-side badges"></div>
+  </div>
+  <div class="tech-divider"></div>
+  <div class="tech-side">
+    <div class="tech-side-label red">🔴 红方科技</div>
+    <div id="redTechs" class="tech-side badges"></div>
+  </div>
 </div>
 
 <!-- 控制区 -->
@@ -896,7 +930,7 @@ function renderTechs(containerId, techs) {
   }
   const techList = Array.isArray(techs) ? techs : Array.from(techs);
   container.innerHTML = techList.map(t =>
-    `<span class="tech-badge active">${TECHS[t]?.name || t}</span>`
+    `<span class="tech-badge blue-tech active">${TECHS[t]?.name || t}</span>`
   ).join("");
 }
 
