@@ -186,7 +186,7 @@ const SKILLS_EXPANSION = {
     radius: 3,
     effect: (allies) => {
       allies.forEach(u => {
-        if (!u.dead) u.damageBonus = (u.damageBonus || 0) + 0.2
+        if (!u.dead) u.damageBonus = (u.damageSeed || 0) + 0.2
       })
     }
   },
