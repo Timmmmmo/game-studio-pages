@@ -1065,8 +1065,8 @@ async function startBattle() {
   // 重置
   roundNum = 0;
   actionCount = 0;
-  blueBrain = new AIBrainV2("blue", "balanced");
-  redBrain = new AIBrainV2("red", "aggressive");
+  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
+  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
 
   updateResourceDisplay();
   updateBaseDisplay();
