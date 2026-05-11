@@ -394,7 +394,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 10,
-    effectiveArmor: 10,
     speed: 180,     // 慢
     attackSpeed: 1.0,  // 慢攻速
     range: "melee",
@@ -421,7 +420,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 5,
-    effectiveArmor: 5,
     speed: 380,    // 快
     attackSpeed: 1.8,  // 快攻速
     range: "melee",
@@ -447,7 +445,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 3,
-    effectiveArmor: 3,
     speed: 300,
     attackSpeed: 1.2,
     range: "ranged",
@@ -723,7 +720,6 @@ const UNITS_V2 = {
     attackType: "magic",
     armorType: "light",
     armor: 2,
-    effectiveArmor: 2,
     speed: 280,
     attackSpeed: 1.0,
     range: "ranged",
