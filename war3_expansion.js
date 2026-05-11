@@ -62,7 +62,6 @@ const SKILLS_EXPANSION = {
       const target = allies.filter(a => !a.dead)[0]
       if (target) {
         target.armor += 8
-        target.effectiveArmor += 8
         target.iceArmor = 3 // 持续3回合
         return { target: target.name, effect: "ice_armor" }
       }
@@ -525,7 +524,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 5,
-    effectiveArmor: 5,
     speed: 320,
     attackSpeed: 1.4,
     range: "ranged",
@@ -551,7 +549,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 4,
-    effectiveArmor: 4,
     speed: 300,
     attackSpeed: 1.3,
     range: "ranged",
@@ -577,7 +574,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 3,
-    effectiveArmor: 3,
     speed: 420,
     attackSpeed: 2.0,
     range: "melee",
@@ -603,7 +599,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 8,
-    effectiveArmor: 8,
     speed: 280,
     attackSpeed: 1.1,
     range: "melee",

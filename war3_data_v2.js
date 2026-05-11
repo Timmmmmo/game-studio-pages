@@ -257,7 +257,6 @@ const SKILLS = {
       elemental.attackType = "magic";
       elemental.armorType = "light";
       elemental.armor = 2;
-      elemental.effectiveArmor = 2;
       elemental.speed = 280;
       elemental.range = "ranged";
       elemental.isSummon = true;

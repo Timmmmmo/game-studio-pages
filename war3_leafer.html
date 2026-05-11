@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>魔兽兵种对战 v3.0 - LeaferJS引擎</title>
+  <title>魔兽兵种对战 v3.0 - Canvas 2D</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -59,12 +59,13 @@
       border-radius: 12px;
       position: relative;
       overflow: hidden;
-      min-height: 400px;
+      min-height: 350px;
     }
     
-    #leaferCanvas {
+    #battleCanvas {
       width: 100%;
       height: 100%;
+      display: block;
     }
     
     .resource-bar {
@@ -75,12 +76,7 @@
       border-radius: 8px;
     }
     
-    .resource {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    
+    .resource { display: flex; align-items: center; gap: 5px; }
     .resource-icon { font-size: 1.2rem; }
     .resource-value { font-weight: bold; color: #f1c40f; }
     
@@ -92,41 +88,18 @@
       margin-bottom: 8px;
       transition: all 0.3s ease;
     }
-    
-    .unit-card:hover {
-      transform: translateX(5px);
-      border-color: #3498db;
-    }
-    
+    .unit-card:hover { transform: translateX(5px); border-color: #3498db; }
     .unit-card.enemy {
       background: linear-gradient(135deg, rgba(231,76,60,0.3), rgba(192,57,43,0.2));
       border-color: rgba(231,76,60,0.5);
     }
     
-    .unit-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-    
+    .unit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     .unit-icon { font-size: 1.5rem; }
     .unit-name { font-weight: bold; }
     
-    .hp-bar {
-      height: 6px;
-      background: #333;
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 5px;
-    }
-    
-    .hp-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #27ae60, #2ecc71);
-      transition: width 0.3s ease;
-    }
-    
+    .hp-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+    .hp-fill { height: 100%; background: linear-gradient(90deg, #27ae60, #2ecc71); transition: width 0.3s; }
     .hp-fill.low { background: linear-gradient(90deg, #e74c3c, #c0392b); }
     .hp-fill.mid { background: linear-gradient(90deg, #f39c12, #e67e22); }
     
@@ -137,23 +110,11 @@
       cursor: pointer;
       font-size: 1rem;
       font-weight: bold;
-      transition: all 0.3s ease;
+      transition: all 0.3s;
     }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #3498db, #2980b9);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 20px rgba(52,152,219,0.4);
-    }
-    
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    .btn-primary { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(52,152,219,0.4); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     
     .battle-log {
       flex: 1;
@@ -163,17 +124,8 @@
       background: rgba(0,0,0,0.3);
       border-radius: 8px;
     }
-    
-    .log-entry {
-      padding: 5px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      animation: fadeIn 0.3s ease;
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .log-entry { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     
     .skill-icon {
       display: inline-block;
@@ -184,536 +136,375 @@
       font-size: 0.9rem;
     }
     
-    .round-indicator {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #f1c40f;
-    }
+    .round-indicator { font-size: 1.5rem; font-weight: bold; color: #f1c40f; }
     
-    .base-hp {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .base-bar {
-      flex: 1;
-      height: 20px;
-      background: #333;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    
-    .base-fill {
-      height: 100%;
-      transition: width 0.5s ease;
-    }
-    
+    .base-hp { display: flex; align-items: center; gap: 10px; }
+    .base-bar { flex: 1; height: 20px; background: #333; border-radius: 10px; overflow: hidden; }
+    .base-fill { height: 100%; transition: width 0.5s; }
     .base-fill.blue { background: linear-gradient(90deg, #3498db, #2980b9); }
     .base-fill.red { background: linear-gradient(90deg, #e74c3c, #c0392b); }
     
-    .status-msg {
-      text-align: center;
-      padding: 20px;
-      color: #888;
-    }
+    .status-msg { text-align: center; padding: 20px; color: #888; }
+    
+    .army-list { max-height: 300px; overflow-y: auto; }
   </style>
 </head>
 <body>
   <div class="game-container">
-    <!-- 左侧：蓝方面板 -->
     <div class="panel">
       <div class="panel-title">🔵 蓝方基地</div>
-      
       <div class="base-hp">
         <span>🏰</span>
-        <div class="base-bar">
-          <div class="base-fill blue" id="blueBaseFill" style="width: 100%"></div>
-        </div>
+        <div class="base-bar"><div class="base-fill blue" id="blueBaseFill" style="width: 100%"></div></div>
         <span id="blueBaseHp">3000</span>
       </div>
-      
       <div class="resource-bar">
-        <div class="resource">
-          <span class="resource-icon">💰</span>
-          <span class="resource-value" id="blueGold">500</span>
-        </div>
-        <div class="resource">
-          <span class="resource-icon">🪵</span>
-          <span class="resource-value" id="blueLumber">500</span>
-        </div>
+        <div class="resource"><span class="resource-icon">💰</span><span class="resource-value" id="blueGold">500</span></div>
+        <div class="resource"><span class="resource-icon">🪵</span><span class="resource-value" id="blueLumber">500</span></div>
       </div>
-      
       <div class="panel-title" style="margin-top:10px">军队</div>
-      <div id="blueArmy" class="army-list" style="flex:1; overflow-y:auto">
-        <div class="status-msg">等待部署...</div>
-      </div>
+      <div id="blueArmy" class="army-list"><div class="status-msg">等待部署...</div></div>
     </div>
     
-    <!-- 中间：战场 -->
     <div class="battlefield-container">
       <div class="battlefield-header">
-        <div>
-          <span>回合: </span>
-          <span class="round-indicator" id="roundNum">0</span>
-        </div>
+        <div>回合: <span class="round-indicator" id="roundNum">0</span></div>
         <button class="btn btn-primary" id="btnBattle" onclick="startBattle()">⚔️ 开始对战</button>
-        <div>
-          <span>速度: </span>
-          <input type="range" id="speedSlider" min="100" max="800" value="500" onchange="updateSpeed()" style="width:100px">
-        </div>
+        <div>速度: <input type="range" id="speedSlider" min="100" max="800" value="500" onchange="updateSpeed()" style="width:100px"></div>
       </div>
-      
       <div class="battlefield-canvas">
-        <div id="leaferCanvas"></div>
+        <canvas id="battleCanvas"></canvas>
       </div>
-      
       <div class="battlefield-header">
         <div class="base-hp" style="flex:1">
           <span>🔴 红方基地</span>
-          <div class="base-bar">
-            <div class="base-fill red" id="redBaseFill" style="width: 100%"></div>
-          </div>
+          <div class="base-bar"><div class="base-fill red" id="redBaseFill" style="width: 100%"></div></div>
           <span id="redBaseHp">3000</span>
         </div>
       </div>
     </div>
     
-    <!-- 右侧：红方面板 + 日志 -->
     <div class="panel">
       <div class="panel-title">🔴 红方军队</div>
-      <div id="redArmy" class="army-list" style="max-height:200px; overflow-y:auto">
-        <div class="status-msg">等待部署...</div>
-      </div>
-      
+      <div id="redArmy" class="army-list"><div class="status-msg">等待部署...</div></div>
       <div class="panel-title" style="margin-top:10px">📜 战斗日志</div>
-      <div class="battle-log" id="battleLog">
-        <div class="status-msg">等待开始...</div>
-      </div>
+      <div class="battle-log" id="battleLog"><div class="status-msg">等待开始...</div></div>
     </div>
   </div>
 
-  <!-- 游戏数据 -->
   <script src="war3_data_v2.js"></script>
   <script src="war3_expansion.js"></script>
   
-  <!-- LeaferJS 引擎 (esm.sh 自动打包依赖) -->
-  <script type="module">
-    import { Leafer, Rect, Group, Text, Ellipse, Line } from 'https://esm.sh/leafer-ui@2.1.0?bundle'
-    
-    // 暴露到全局
-    window.Leafer = Leafer
-    window.Rect = Rect
-    window.Group = Group
-    window.Text = Text
-    window.Ellipse = Ellipse
-    window.Line = Line
-    
-    // 初始化战场
-    function initBattlefield() {
-      const canvas = document.getElementById('leaferCanvas')
-      if (!canvas) {
-        console.error('找不到 canvas 容器')
-        return false
-      }
-      
-      const rect = canvas.getBoundingClientRect()
-      console.log('Canvas 尺寸:', rect.width, 'x', rect.height)
-      
-      if (rect.width < 100 || rect.height < 100) {
-        console.error('Canvas 尺寸太小')
-        return false
-      }
-      
-      const leafer = new Leafer({ 
-        view: canvas,
-        fill: '#0a0a1a'
-      })
-      
-      window.leafer = leafer
-      
-      const width = leafer.width
-      const height = leafer.height
-      
-      // 背景网格
-      const gridGroup = new Group()
-      const gridSize = 50
-      for (let x = 0; x < width; x += gridSize) {
-        gridGroup.add(new Line({
-          x1: x, y1: 0, x2: x, y2: height,
-          stroke: 'rgba(52,152,219,0.1)', strokeWidth: 1
-        }))
-      }
-      for (let y = 0; y < height; y += gridSize) {
-        gridGroup.add(new Line({
-          x1: 0, y1: y, x2: width, y2: y,
-          stroke: 'rgba(52,152,219,0.1)', strokeWidth: 1
-        }))
-      }
-      leafer.add(gridGroup)
-      
-      // 中线
-      leafer.add(new Line({
-        x1: width/2, y1: 0, x2: width/2, y2: height,
-        stroke: 'rgba(241,196,15,0.3)', strokeWidth: 2, dash: [10, 5]
-      }))
-      
-      // 战斗场景组
-      window.battleScene = new Group()
-      leafer.add(window.battleScene)
-      
-      console.log('✅ LeaferJS 战场初始化完成:', width, 'x', height)
-      return true
-    }
-    
-    // 等待 DOM ready 后初始化
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-          window.leaferReady = initBattlefield()
-        }, 100)
-      })
-    } else {
-      setTimeout(() => {
-        window.leaferReady = initBattlefield()
-      }, 100)
-    }
-  </script>
-
-  <!-- 游戏逻辑 -->
   <script>
-    // ==================== 游戏状态 ====================
-    window.leaferReady = false
-    let battleRunning = false
-    let roundNum = 0
-    let gameSpeed = 400
-    let blueBrain = null
-    let redBrain = null
-    let unitGraphics = new Map()
+    // ==================== Canvas 2D 渲染引擎 ====================
+    let battleCanvas, battleCtx;
+    const unitPositions = new Map();
     
-    const BLUE_HERO_TYPE = "strength_hero"
-    const RED_HERO_TYPE = "agility_hero"
+    function initEngine() {
+      battleCanvas = document.getElementById('battleCanvas');
+      if (!battleCanvas) { console.error('找不到 canvas'); return false; }
+      battleCtx = battleCanvas.getContext('2d');
+      
+      function resize() {
+        const rect = battleCanvas.parentElement.getBoundingClientRect();
+        battleCanvas.width = rect.width;
+        battleCanvas.height = Math.max(300, rect.height);
+        drawBackground();
+      }
+      window.addEventListener('resize', resize);
+      resize();
+      return true;
+    }
+    
+    function drawBackground() {
+      const ctx = battleCtx, w = battleCanvas.width, h = battleCanvas.height;
+      if (!ctx) return;
+      
+      ctx.fillStyle = '#0a0a1a';
+      ctx.fillRect(0, 0, w, h);
+      
+      ctx.strokeStyle = 'rgba(52,152,219,0.1)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= w; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y <= h; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+      
+      ctx.strokeStyle = 'rgba(241,196,15,0.3)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 5]);
+      ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    
+    function drawUnit(unit, x, y, isBlue) {
+      const ctx = battleCtx;
+      const color = isBlue ? '#3498db' : '#e74c3c';
+      
+      // 底座圆
+      ctx.beginPath();
+      ctx.arc(x, y, 30, 0, Math.PI * 2);
+      ctx.fillStyle = color + '80';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // 图标
+      ctx.font = '24px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(unit.icon || '?', x, y);
+      
+      // 血条背景
+      ctx.fillStyle = '#333';
+      ctx.fillRect(x - 40, y - 45, 80, 8);
+      
+      // 血条
+      const hpPct = Math.max(0, unit.hp / unit.max_hp);
+      ctx.fillStyle = hpPct > 0.6 ? '#27ae60' : hpPct > 0.3 ? '#f39c12' : '#e74c3c';
+      ctx.fillRect(x - 40, y - 45, 80 * hpPct, 8);
+      
+      // 英雄光环
+      if (unit.isHero) {
+        ctx.beginPath();
+        ctx.arc(x, y, 35, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    
+    function renderBattlefield() {
+      if (!battleCtx) return;
+      const w = battleCanvas.width;
+      
+      drawBackground();
+      unitPositions.clear();
+      
+      if (blueBrain) {
+        blueBrain.army.filter(u => !u.dead).forEach((u, i) => {
+          const x = 100 + (i % 4) * 85;
+          const y = 80 + Math.floor(i / 4) * 95;
+          drawUnit(u, x, y, true);
+          unitPositions.set(u.idx, { x, y, isBlue: true });
+        });
+      }
+      
+      if (redBrain) {
+        redBrain.army.filter(u => !u.dead).forEach((u, i) => {
+          const x = w - 130 - (i % 4) * 85;
+          const y = 80 + Math.floor(i / 4) * 95;
+          drawUnit(u, x, y, false);
+          unitPositions.set(u.idx, { x, y, isBlue: false });
+        });
+      }
+    }
+    
+    // ==================== 游戏状态 ====================
+    let battleRunning = false;
+    let roundNum = 0;
+    let gameSpeed = 400;
+    let blueBrain, redBrain;
+    
+    const BLUE_HERO_TYPE = "strength_hero";
+    const RED_HERO_TYPE = "agility_hero";
     
     // ==================== 工具函数 ====================
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms))
-    }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
     
     function log(msg, color = '#fff') {
-      const logEl = document.getElementById('battleLog')
-      logEl.innerHTML += `<div class="log-entry" style="color:${color}">${msg}</div>`
-      logEl.scrollTop = logEl.scrollHeight
+      const el = document.getElementById('battleLog');
+      el.innerHTML += `<div class="log-entry" style="color:${color}">${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
     }
     
-    // ==================== UI渲染 ====================
     function updateSpeed() {
-      gameSpeed = 901 - document.getElementById('speedSlider').value
+      gameSpeed = 901 - document.getElementById('speedSlider').value;
     }
     
+    // ==================== UI ====================
     function renderArmyPanel(units, containerId, isBlue) {
-      const container = document.getElementById(containerId)
-      const living = units.filter(u => !u.dead)
+      const container = document.getElementById(containerId);
+      const living = units.filter(u => !u.dead);
       
       if (living.length === 0) {
-        container.innerHTML = '<div class="status-msg">等待部署...</div>'
-        return
+        container.innerHTML = '<div class="status-msg">等待部署...</div>';
+        return;
       }
       
       container.innerHTML = living.map(u => {
-        const hpPct = u.hp / u.max_hp * 100
-        const hpClass = hpPct > 60 ? '' : hpPct > 30 ? 'mid' : 'low'
+        const hpPct = u.hp / u.max_hp * 100;
+        const hpClass = hpPct > 60 ? '' : hpPct > 30 ? 'mid' : 'low';
         const skillsHtml = (u.skills || []).map(s => 
           `<span class="skill-icon">${(SKILLS[s] || {}).icon || '?'}</span>`
-        ).join('')
+        ).join('');
         
-        return `
-          <div class="unit-card ${isBlue ? '' : 'enemy'}">
-            <div class="unit-header">
-              <span class="unit-icon">${u.icon}</span>
-              <span class="unit-name">${u.name}</span>
-              <span style="font-size:0.8rem;color:#888">${Math.ceil(u.hp)}/${u.max_hp}</span>
-            </div>
-            <div class="hp-bar">
-              <div class="hp-fill ${hpClass}" style="width:${hpPct}%"></div>
-            </div>
-            ${skillsHtml ? `<div style="margin-top:5px">${skillsHtml}</div>` : ''}
+        return `<div class="unit-card ${isBlue ? '' : 'enemy'}">
+          <div class="unit-header">
+            <span class="unit-icon">${u.icon}</span>
+            <span class="unit-name">${u.name}</span>
+            <span style="font-size:0.8rem;color:#888">${Math.ceil(u.hp)}/${u.max_hp}</span>
           </div>
-        `
-      }).join('')
+          <div class="hp-bar"><div class="hp-fill ${hpClass}" style="width:${hpPct}%"></div></div>
+          ${skillsHtml ? `<div style="margin-top:5px">${skillsHtml}</div>` : ''}
+        </div>`;
+      }).join('');
     }
     
     function updateUI() {
       if (blueBrain) {
-        const bs = blueBrain.resources.getState()
-        document.getElementById('blueGold').textContent = bs.gold
-        document.getElementById('blueLumber').textContent = bs.lumber
-        document.getElementById('blueBaseHp').textContent = Math.ceil(blueBrain.base.hp)
-        document.getElementById('blueBaseFill').style.width = (blueBrain.base.hp / blueBrain.base.maxHp * 100) + '%'
-        renderArmyPanel(blueBrain.army, 'blueArmy', true)
+        const bs = blueBrain.resources.getState();
+        document.getElementById('blueGold').textContent = bs.gold;
+        document.getElementById('blueLumber').textContent = bs.lumber;
+        document.getElementById('blueBaseHp').textContent = Math.ceil(blueBrain.base.hp);
+        document.getElementById('blueBaseFill').style.width = (blueBrain.base.hp / blueBrain.base.maxHp * 100) + '%';
+        renderArmyPanel(blueBrain.army, 'blueArmy', true);
       }
       if (redBrain) {
-        document.getElementById('redBaseHp').textContent = Math.ceil(redBrain.base.hp)
-        document.getElementById('redBaseFill').style.width = (redBrain.base.hp / redBrain.base.maxHp * 100) + '%'
-        renderArmyPanel(redBrain.army, 'redArmy', false)
-      }
-    }
-    
-    // ==================== LeaferJS 渲染 ====================
-    function renderUnit(unit, x, y, isBlue) {
-      if (!window.battleScene || !window.Group) return null
-      
-      const { Group, Ellipse, Text, Rect } = window
-      
-      try {
-        const group = new Group({ x, y })
-        
-        // 底座
-        group.add(new Ellipse({
-          x: 0, y: 0,
-          width: 60, height: 60,
-          fill: isBlue ? 'rgba(52,152,219,0.5)' : 'rgba(231,76,60,0.5)',
-          stroke: isBlue ? '#3498db' : '#e74c3c',
-          strokeWidth: 2
-        }))
-        
-        // 图标
-        group.add(new Text({
-          x: 30, y: 30,
-          text: unit.icon || '?',
-          fontSize: 28,
-          textAlign: 'center',
-          verticalAlign: 'middle',
-          fill: '#fff'
-        }))
-        
-        // 血条背景
-        group.add(new Rect({
-          x: -10, y: -20,
-          width: 80, height: 8,
-          fill: '#333',
-          cornerRadius: 4
-        }))
-        
-        // 血条
-        const hpPct = unit.hp / unit.max_hp
-        const hpFill = new Rect({
-          x: -10, y: -20,
-          width: 80 * hpPct, height: 8,
-          fill: hpPct > 0.6 ? '#27ae60' : hpPct > 0.3 ? '#f39c12' : '#e74c3c',
-          cornerRadius: 4
-        })
-        group.add(hpFill)
-        group.hpFill = hpFill
-        
-        // 英雄光环
-        if (unit.isHero) {
-          group.add(new Ellipse({
-            x: 0, y: 0,
-            width: 70, height: 70,
-            stroke: '#f1c40f',
-            strokeWidth: 3,
-            dash: [5, 3]
-          }))
-        }
-        
-        window.battleScene.add(group)
-        return group
-      } catch (e) {
-        console.error('渲染单位失败:', e)
-        return null
-      }
-    }
-    
-    function updateUnitGraphic(unit, graphic) {
-      if (!graphic || !graphic.hpFill) return
-      const hpPct = Math.max(0, unit.hp / unit.max_hp)
-      graphic.hpFill.width = 80 * hpPct
-      graphic.hpFill.fill = hpPct > 0.6 ? '#27ae60' : hpPct > 0.3 ? '#f39c12' : '#e74c3c'
-    }
-    
-    function renderBattlefield() {
-      if (!window.battleScene) {
-        console.warn('battleScene 未初始化')
-        return
-      }
-      
-      // 清除旧图形
-      window.battleScene.clear()
-      unitGraphics.clear()
-      
-      const width = window.leafer ? window.leafer.width : 800
-      const height = window.leafer ? window.leafer.height : 400
-      
-      // 蓝方在左边
-      if (blueBrain) {
-        blueBrain.army.filter(u => !u.dead).forEach((u, i) => {
-          const x = 100 + (i % 4) * 70
-          const y = 80 + Math.floor(i / 4) * 80
-          const gfx = renderUnit(u, x, y, true)
-          if (gfx) unitGraphics.set(u.idx, gfx)
-        })
-      }
-      
-      // 红方在右边
-      if (redBrain) {
-        redBrain.army.filter(u => !u.dead).forEach((u, i) => {
-          const x = width - 150 - (i % 4) * 70
-          const y = 80 + Math.floor(i / 4) * 80
-          const gfx = renderUnit(u, x, y, false)
-          if (gfx) unitGraphics.set(u.idx, gfx)
-        })
+        document.getElementById('redBaseHp').textContent = Math.ceil(redBrain.base.hp);
+        document.getElementById('redBaseFill').style.width = (redBrain.base.hp / redBrain.base.maxHp * 100) + '%';
+        renderArmyPanel(redBrain.army, 'redArmy', false);
       }
     }
     
     // ==================== 战斗系统 ====================
     async function startBattle() {
-      if (battleRunning) return
+      if (battleRunning) return;
       
-      const btn = document.getElementById('btnBattle')
-      btn.disabled = true
+      const btn = document.getElementById('btnBattle');
+      btn.disabled = true;
       
-      // 等待 LeaferJS 初始化
-      let waitCount = 0
-      while (!window.leaferReady && waitCount < 20) {
-        document.getElementById('battleLog').innerHTML = '<div class="status-msg">⏳ 等待引擎初始化...</div>'
-        await sleep(200)
-        waitCount++
+      // 等待 Canvas 初始化
+      let wait = 0;
+      while (!window.engineReady && wait < 50) {
+        document.getElementById('battleLog').innerHTML = '<div class="status-msg">⏳ 初始化中...</div>';
+        await sleep(100);
+        wait++;
       }
       
-      if (!window.leaferReady || !window.battleScene) {
-        document.getElementById('battleLog').innerHTML = '<div class="status-msg" style="color:#e74c3c">❌ 引擎初始化失败，请刷新页面重试</div>'
-        btn.disabled = false
-        return
+      if (!window.engineReady) {
+        document.getElementById('battleLog').innerHTML = '<div class="status-msg" style="color:#e74c3c">❌ 引擎初始化失败</div>';
+        btn.disabled = false;
+        return;
       }
       
-      battleRunning = true
-      document.getElementById('battleLog').innerHTML = ''
-      log('⚔️ 战斗开始！', '#f39c12')
+      battleRunning = true;
+      document.getElementById('battleLog').innerHTML = '';
+      log('⚔️ 战斗开始！', '#f39c12');
       
-      // 初始化AI
-      console.log('初始化 AI...')
-      blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE)
-      redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE)
+      // 初始化 AI
+      blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
+      redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
       
       // 第一回合
-      console.log('执行第一回合...')
-      blueBrain.resources.addIncome()
-      redBrain.resources.addIncome()
+      blueBrain.resources.addIncome();
+      redBrain.resources.addIncome();
       
-      const blueTurn = blueBrain.takeTurn(null)
-      const redTurn = redBrain.takeTurn(blueBrain.army)
+      const blueTurn = blueBrain.takeTurn(null);
+      const redTurn = redBrain.takeTurn(blueBrain.army);
       
-      console.log('蓝方:', blueTurn)
-      console.log('红方:', redTurn)
-      console.log('蓝方军队:', blueBrain.army.length, '红方军队:', redBrain.army.length)
+      console.log('蓝方:', blueTurn);
+      console.log('红方:', redTurn);
       
-      // 显示英雄出场
       if (blueTurn && blueTurn.heroSpawned) {
-        log(`🔵 蓝方英雄 ${(HEROES[blueTurn.heroSpawned] || {}).name || blueTurn.heroSpawned} 出场！`, '#3498db')
+        log(`🔵 蓝方英雄 ${(HEROES[blueTurn.heroSpawned] || {}).name || blueTurn.heroSpawned} 出场！`, '#3498db');
       }
       if (redTurn && redTurn.heroSpawned) {
-        log(`🔴 红方英雄 ${(HEROES[redTurn.heroSpawned] || {}).name || redTurn.heroSpawned} 出场！`, '#e74c3c')
+        log(`🔴 红方英雄 ${(HEROES[redTurn.heroSpawned] || {}).name || redTurn.heroSpawned} 出场！`, '#e74c3c');
       }
       
-      // 显示单位生产
       if (blueTurn && blueTurn.unitsProduced && blueTurn.unitsProduced.length > 0) {
-        log(`🔵 蓝方生产: ${blueTurn.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#3498db')
+        log(`🔵 蓝方: ${blueTurn.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#3498db');
       }
       if (redTurn && redTurn.unitsProduced && redTurn.unitsProduced.length > 0) {
-        log(`🔴 红方生产: ${redTurn.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#e74c3c')
+        log(`🔴 红方: ${redTurn.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#e74c3c');
       }
       
-      updateUI()
-      renderBattlefield()
-      
-      await sleep(500)
+      updateUI();
+      renderBattlefield();
+      await sleep(500);
       
       // 战斗循环
       while (battleRunning) {
-        roundNum++
-        document.getElementById('roundNum').textContent = roundNum
+        roundNum++;
+        document.getElementById('roundNum').textContent = roundNum;
         
-        await executeRound()
+        await executeRound();
         
-        // 检查胜负
         if (blueBrain.base.hp <= 0 || redBrain.base.hp <= 0) {
-          battleRunning = false
-          const winner = blueBrain.base.hp <= 0 ? '🔴 红方' : '🔵 蓝方'
-          log(`🏆 ${winner} 获胜！`, '#f1c40f')
-          btn.disabled = false
-          break
+          battleRunning = false;
+          const winner = blueBrain.base.hp <= 0 ? '🔴 红方' : '🔵 蓝方';
+          log(`🏆 ${winner} 获胜！`, '#f1c40f');
+          btn.disabled = false;
+          break;
         }
         
-        // 收入和出兵
-        blueBrain.resources.addIncome()
-        redBrain.resources.addIncome()
+        blueBrain.resources.addIncome();
+        redBrain.resources.addIncome();
         
-        const bt = blueBrain.takeTurn(redBrain.army)
-        const rt = redBrain.takeTurn(blueBrain.army)
+        const bt = blueBrain.takeTurn(redBrain.army);
+        const rt = redBrain.takeTurn(blueBrain.army);
         
-        // 显示复活
-        if (bt && bt.heroRevived) {
-          log(`🔵 蓝方英雄复活！`, '#3498db')
-        }
-        if (rt && rt.heroRevived) {
-          log(`🔴 红方英雄复活！`, '#e74c3c')
-        }
+        if (bt && bt.heroRevived) log(`🔵 蓝方英雄复活！`, '#3498db');
+        if (rt && rt.heroRevived) log(`🔴 红方英雄复活！`, '#e74c3c');
         
-        // 显示生产
         if (bt && bt.unitsProduced && bt.unitsProduced.length > 0) {
-          log(`🔵 蓝方生产: ${bt.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#3498db')
+          log(`🔵 蓝方: ${bt.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#3498db');
         }
         if (rt && rt.unitsProduced && rt.unitsProduced.length > 0) {
-          log(`🔴 红方生产: ${rt.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#e74c3c')
+          log(`🔴 红方: ${rt.unitsProduced.map(u => (UNITS_V2[u] || {}).name || u).join(', ')}`, '#e74c3c');
         }
         
-        updateUI()
-        renderBattlefield()
-        
-        await sleep(gameSpeed)
+        updateUI();
+        renderBattlefield();
+        await sleep(gameSpeed);
       }
     }
     
     async function executeRound() {
-      const blueLiving = blueBrain.army.filter(u => !u.dead)
-      const redLiving = redBrain.army.filter(u => !u.dead)
-      const allUnits = [...blueLiving, ...redLiving].sort((a, b) => b.speed - a.speed)
+      const allUnits = [...blueBrain.army.filter(u => !u.dead), ...redBrain.army.filter(u => !u.dead)]
+        .sort((a, b) => b.speed - a.speed);
       
-      log(`── 回合 ${roundNum} ──`, '#888')
+      log(`── 回合 ${roundNum} ──`, '#888');
       
       for (const unit of allUnits) {
-        if (unit.dead || !battleRunning) continue
+        if (unit.dead || !battleRunning) continue;
         
-        const enemies = unit.owner === 'blue' ? redBrain.army : blueBrain.army
-        const allies = unit.owner === 'blue' ? blueBrain.army : redBrain.army
-        const techs = (unit.owner === 'blue' ? blueBrain : redBrain).resources.techs
+        const enemies = unit.owner === 'blue' ? redBrain.army : blueBrain.army;
+        const allies = unit.owner === 'blue' ? blueBrain.army : redBrain.army;
+        const techs = (unit.owner === 'blue' ? blueBrain : redBrain).resources.techs;
         
         try {
-          const actions = unit.act(enemies, allies, techs)
-          if (!actions) continue
+          const actions = unit.act(enemies, allies, techs);
+          if (!actions) continue;
           
           for (const action of actions) {
             if (action.type === 'attack' && action.target) {
-              const color = unit.owner === 'blue' ? '#3498db' : '#e74c3c'
-              const critText = action.crit ? '💥暴击!' : ''
-              log(`${unit.icon} ${unit.name} → ${action.target.icon} ${action.target.name} ${action.damage}伤害 ${critText}`, color)
-              
-              // 更新图形
-              const targetGfx = unitGraphics.get(action.target.idx)
-              if (targetGfx) updateUnitGraphic(action.target, targetGfx)
+              const color = unit.owner === 'blue' ? '#3498db' : '#e74c3c';
+              const critText = action.crit ? '💥暴击!' : '';
+              log(`${unit.icon} ${unit.name} → ${action.target.icon} ${action.target.name} ${action.damage}伤害 ${critText}`, color);
             }
           }
         } catch (e) {
-          console.error('执行单位行动失败:', unit.name, e)
+          console.error('执行行动失败:', unit.name, e);
         }
       }
       
-      // 更新所有单位图形
-      allUnits.forEach(u => {
-        const gfx = unitGraphics.get(u.idx)
-        if (gfx) updateUnitGraphic(u, gfx)
-      })
+      renderBattlefield();
     }
+    
+    // 启动引擎
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        window.engineReady = initEngine();
+        if (window.engineReady) renderBattlefield();
+      }, 100);
+    });
   </script>
 </body>
 </html>
