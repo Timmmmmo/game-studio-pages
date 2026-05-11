@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>⚔️ 魔兽兵种对战 V2 - 基地攻防版</title>
+  <title>⚔️ 魔兽兵种对战 V3 - 基地攻防版</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -639,7 +639,7 @@
 <body>
 
 <div class="header">
-  <h1>⚔️ 魔兽兵种对战 V2</h1>
+  <h1>⚔️ 魔兽兵种对战 V3</h1>
   <p class="subtitle">基地攻防 · 实时收入 · 科技升级 · 英雄系统</p>
 </div>
 
@@ -789,7 +789,8 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=2.5.0-20260510"></script>
+<script src="war3_data_v2.js?v=2.6.0-20260511"></script>
+<script src="war3_expansion.js?v=3.0-20260511"></script>
 <script>
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -1110,13 +1111,14 @@ async function startBattle() {
     const blueAlive = blueBrain.army.filter(u => !u.dead).length;
     const redAlive = redBrain.army.filter(u => !u.dead).length;
 
-    // 如果一方没有存活单位，另一方攻击基地
+    // 基地攻防逻辑
     const logContainer = document.getElementById("battleLog");
 
+    // 规则1: 对方全军覆没时，全力攻击基地
     if (redAlive === 0 && blueAlive > 0) {
       const result = attackBase(blueBrain.army, redBrain.base, "red");
       if (result.totalDmg > 0) {
-        logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方部队攻击红方基地！造成 ${result.totalDmg} 伤害 (红方基地: ${redBrain.base.hp}/${redBrain.base.maxHp})</div>`;
+        logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方全军压境！攻击红方基地！造成 ${result.totalDmg} 伤害 (红方基地: ${redBrain.base.hp}/${redBrain.base.maxHp})</div>`;
         showBaseDamage("red", result.totalDmg);
       }
       updateBaseDisplay();
@@ -1124,10 +1126,34 @@ async function startBattle() {
     if (blueAlive === 0 && redAlive > 0) {
       const result = attackBase(redBrain.army, blueBrain.base, "blue");
       if (result.totalDmg > 0) {
-        logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方部队攻击蓝方基地！造成 ${result.totalDmg} 伤害 (蓝方基地: ${blueBrain.base.hp}/${blueBrain.base.maxHp})</div>`;
+        logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方全军压境！攻击蓝方基地！造成 ${result.totalDmg} 伤害 (蓝方基地: ${blueBrain.base.hp}/${blueBrain.base.maxHp})</div>`;
         showBaseDamage("blue", result.totalDmg);
       }
       updateBaseDisplay();
+    }
+
+    // 规则2: 持续攻城 - 每3回合，存活单位对敌方基地造成少量伤害（模拟围城压力）
+    if (roundNum % 3 === 0 && roundNum > 0) {
+      if (blueAlive > 0 && redAlive >= 0) {
+        const siegeDmg = blueAlive * 8; // 每个存活单位8点围城伤害
+        redBrain.base.hp -= siegeDmg;
+        if (redBrain.base.hp < 0) redBrain.base.hp = 0;
+        if (siegeDmg > 0) {
+          logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方围城！对红方基地造成 ${siegeDmg} 伤害</div>`;
+          showBaseDamage("red", siegeDmg);
+        }
+        updateBaseDisplay();
+      }
+      if (redAlive > 0 && blueAlive >= 0) {
+        const siegeDmg = redAlive * 8;
+        blueBrain.base.hp -= siegeDmg;
+        if (blueBrain.base.hp < 0) blueBrain.base.hp = 0;
+        if (siegeDmg > 0) {
+          logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方围城！对蓝方基地造成 ${siegeDmg} 伤害</div>`;
+          showBaseDamage("blue", siegeDmg);
+        }
+        updateBaseDisplay();
+      }
     }
 
     // 更新统计
@@ -1315,6 +1341,18 @@ async function startTournament() {
         }
         if (alive1 === 0 && alive2 > 0) {
           attackBase(brain2.army, brain1.base, "blue");
+        }
+
+        // 持续攻城 - 每3回合围城伤害
+        if (cycle % 3 === 0 && cycle > 0) {
+          if (alive1 > 0) {
+            const siegeDmg = alive1 * 8;
+            brain2.base.hp = Math.max(0, brain2.base.hp - siegeDmg);
+          }
+          if (alive2 > 0) {
+            const siegeDmg = alive2 * 8;
+            brain1.base.hp = Math.max(0, brain1.base.hp - siegeDmg);
+          }
         }
 
         // 检查胜利
