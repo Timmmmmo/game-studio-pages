@@ -297,19 +297,9 @@
   <script src="war3_data_v2.js"></script>
   <script src="war3_expansion.js"></script>
   
-  <!-- LeaferJS Import Map -->
-  <script type="importmap">
-  {
-    "imports": {
-      "@leafer/core": "https://cdn.jsdelivr.net/npm/@leafer/core@2.1.0/dist/web.min.js",
-      "@leafer/ui": "https://cdn.jsdelivr.net/npm/@leafer/ui@2.1.0/dist/web.min.js"
-    }
-  }
-  </script>
-  
-  <!-- LeaferJS 引擎 -->
+  <!-- LeaferJS 引擎 (esm.sh 自动打包依赖) -->
   <script type="module">
-    import { Leafer, Rect, Group, Text, Ellipse, Line } from 'https://cdn.jsdelivr.net/npm/leafer-ui@2.1.0/dist/web.esm.min.js'
+    import { Leafer, Rect, Group, Text, Ellipse, Line } from 'https://esm.sh/leafer-ui@2.1.0?bundle'
     
     // 暴露到全局
     window.Leafer = Leafer
