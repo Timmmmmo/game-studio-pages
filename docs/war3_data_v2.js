@@ -1223,10 +1223,10 @@ class AIBrainV2 {
             break;
         }
 
-        // 现有阵容平衡
+        // 现有阵容平衡 - 增加多样性惩罚，强制生产不同类型单位
         const currentTypes = [...this.army, ...choices.map(c => UNITS_V2[c])];
         const sameType = currentTypes.filter(u => u.type === unitType).length;
-        score -= sameType * 15; // 鼓励多样性
+        score -= sameType * 35; // 强化多样性惩罚，鼓励生产不同类型单位
 
         if (score > bestScore) {
           bestScore = score;
