@@ -2,7 +2,7 @@
 // 包含：技能系统、动画效果、资源管理、科技升级
 // Updated: 2026-05-10 v2.5.0 - 英雄系统
 
-const VERSION = "2.6.0";
+const VERSION = "3.0.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -207,20 +207,27 @@ const SKILLS = {
     cooldown: 8,
     manaCost: 120,
     effect: (unit, allies) => {
-      // 创建2个镜像分身
+      // 创建2个镜像分身（使用UnitV2确保有act方法）
       for (let i = 0; i < 2; i++) {
-        const clone = {
-          ...unit,
-          type: unit.type + '_mirror',
-          name: unit.name + '(镜像)',
-          icon: unit.icon,
-          hp: Math.floor(unit.hp * 0.3),
-          max_hp: Math.floor(unit.max_hp * 0.3),
-          damage: Math.floor(unit.damage * 0.2),
-          isMirror: true,
-          dead: false
-        };
-        allies.push(clone);
+        try {
+          const clone = new UnitV2(unit.type, unit.owner, allies.length, unit.isHero);
+          clone.type = unit.type + '_mirror';
+          clone.name = unit.name + '(镜像)';
+          clone.hp = Math.floor(unit.hp * 0.3);
+          clone.max_hp = Math.floor(unit.max_hp * 0.3);
+          clone.damage = Math.floor(unit.damage * 0.2);
+          clone.isMirror = true;
+          clone.dead = false;
+          clone.skills = []; // 镜像无技能
+          clone.skillCooldowns = {};
+          clone.mana = 0;
+          clone.maxMana = 0;
+          clone._marked = true;
+          allies.push(clone);
+        } catch(e) {
+          // 如果UnitV2创建失败，跳过
+          console.warn('镜像创建失败:', e.message);
+        }
       }
       return { targets: 2, clone: true };
     }
@@ -257,7 +264,6 @@ const SKILLS = {
       elemental.attackType = "magic";
       elemental.armorType = "light";
       elemental.armor = 2;
-      elemental.effectiveArmor = 2;
       elemental.speed = 280;
       elemental.range = "ranged";
       elemental.isSummon = true;
@@ -394,7 +400,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 10,
-    effectiveArmor: 10,
     speed: 180,     // 慢
     attackSpeed: 1.0,  // 慢攻速
     range: "melee",
@@ -421,7 +426,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 5,
-    effectiveArmor: 5,
     speed: 380,    // 快
     attackSpeed: 1.8,  // 快攻速
     range: "melee",
@@ -447,7 +451,6 @@ const HEROES = {
     attackType: "hero",
     armorType: "hero",
     armor: 3,
-    effectiveArmor: 3,
     speed: 300,
     attackSpeed: 1.2,
     range: "ranged",
@@ -723,7 +726,6 @@ const UNITS_V2 = {
     attackType: "magic",
     armorType: "light",
     armor: 2,
-    effectiveArmor: 2,
     speed: 280,
     attackSpeed: 1.0,
     range: "ranged",
@@ -1271,7 +1273,7 @@ class AIBrainV2 {
       this.hero = new UnitV2(this.heroType, this.name, 0, true);
       // 如果之前有英雄死亡，复活时半血
       if (heroRevived) {
-        this.hero.hp = Math.floor(this.hero.maxHp * 0.5);
+        this.hero.hp = Math.floor(this.hero.max_hp * 0.5);
       }
       this.hero._marked = true;
       this.army.unshift(this.hero);

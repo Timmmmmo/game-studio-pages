@@ -62,7 +62,6 @@ const SKILLS_EXPANSION = {
       const target = allies.filter(a => !a.dead)[0]
       if (target) {
         target.armor += 8
-        target.effectiveArmor += 8
         target.iceArmor = 3 // 持续3回合
         return { target: target.name, effect: "ice_armor" }
       }
@@ -148,23 +147,7 @@ const SKILLS_EXPANSION = {
   },
 
   // ===== 雷电系 =====
-  storm_bolt: {
-    name: "风暴之锤",
-    type: "active",
-    desc: "投掷魔法锤眩晕敌人",
-    icon: "🔨",
-    cooldown: 6,
-    manaCost: 80,
-    effect: (unit, enemies) => {
-      const target = enemies.filter(e => !e.dead)[0]
-      if (target) {
-        target.hp -= 80
-        target.stunned = 2 // 眩晕2回合
-        return { damage: 80, effect: "stun" }
-      }
-      return {}
-    }
-  },
+  // storm_bolt 已在主技能中定义，此处不重复
 
   lightning_shield: {
     name: "闪电护盾",
@@ -187,7 +170,7 @@ const SKILLS_EXPANSION = {
     radius: 3,
     effect: (allies) => {
       allies.forEach(u => {
-        if (!u.dead) u.damageBonus = (u.damageBonus || 0) + 0.2
+        if (!u.dead) u.damageBonus = (u.damageSeed || 0) + 0.2
       })
     }
   },
@@ -525,7 +508,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 5,
-    effectiveArmor: 5,
     speed: 320,
     attackSpeed: 1.4,
     range: "ranged",
@@ -551,7 +533,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 4,
-    effectiveArmor: 4,
     speed: 300,
     attackSpeed: 1.3,
     range: "ranged",
@@ -577,7 +558,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 3,
-    effectiveArmor: 3,
     speed: 420,
     attackSpeed: 2.0,
     range: "melee",
@@ -603,7 +583,6 @@ const HEROES_EXPANSION = {
     attackType: "hero",
     armorType: "hero",
     armor: 8,
-    effectiveArmor: 8,
     speed: 280,
     attackSpeed: 1.1,
     range: "melee",
@@ -619,23 +598,38 @@ const HEROES_EXPANSION = {
 
 // ==================== 合并到主数据 ====================
 function applyExpansion() {
+  // 使用全局引用（兼容浏览器和Node.js eval环境）
+  const _SKILLS = (typeof window !== 'undefined' && window.SKILLS) || (typeof SKILLS !== 'undefined' ? SKILLS : null);
+  const _UNITS = (typeof window !== 'undefined' && window.UNITS_V2) || (typeof UNITS_V2 !== 'undefined' ? UNITS_V2 : null);
+  const _HEROES = (typeof window !== 'undefined' && window.HEROES) || (typeof HEROES !== 'undefined' ? HEROES : null);
+
+  if (!_SKILLS || !_UNITS || !_HEROES) {
+    console.warn('扩展包：主数据未就绪，跳过合并');
+    return;
+  }
+
   // 合并技能
-  Object.assign(SKILLS, SKILLS_EXPANSION)
+  Object.assign(_SKILLS, SKILLS_EXPANSION)
   
   // 合并单位
-  Object.assign(UNITS_V2, UNITS_EXPANSION)
+  Object.assign(_UNITS, UNITS_EXPANSION)
   
   // 合并英雄
-  Object.assign(HEROES, HEROES_EXPANSION)
+  Object.assign(_HEROES, HEROES_EXPANSION)
   
   console.log("扩展包已加载！新增:",
     Object.keys(SKILLS_EXPANSION).length, "个技能,",
     Object.keys(UNITS_EXPANSION).length, "个单位,",
     Object.keys(HEROES_EXPANSION).length, "个英雄"
   )
+
+  // 同步到window（浏览器环境）
+  if (typeof window !== 'undefined') {
+    window.SKILLS = _SKILLS;
+    window.UNITS_V2 = _UNITS;
+    window.HEROES = _HEROES;
+  }
 }
 
 // 自动应用
-if (typeof SKILLS !== 'undefined' && typeof UNITS_V2 !== 'undefined' && typeof HEROES !== 'undefined') {
-  applyExpansion()
-}
+applyExpansion()
