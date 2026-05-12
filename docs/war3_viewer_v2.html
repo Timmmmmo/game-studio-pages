@@ -567,6 +567,22 @@
     .counter-table td.negative { color: #e74c3c; }
     .counter-table td.neutral { color: #888; }
 
+    /* === 兵种列表 === */
+    .unit-list-container { display: flex; gap: 20px; }
+    .unit-list-side { flex: 1; }
+    .unit-list-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; }
+    .unit-list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .unit-list-item { 
+      background: rgba(255,255,255,0.05); 
+      padding: 8px 12px; 
+      border-radius: 6px; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+    }
+    .unit-list-item .unit-count { color: #f39c12; font-weight: bold; }
+    .unit-list-empty { color: #666; font-style: italic; padding: 20px; text-align: center; }
+
     /* === 科技升级浮窗 === */
     .tech-toast {
       position: fixed;
@@ -718,6 +734,7 @@
   <button class="btn btn-green" onclick="startTournament()">🏆 锦标赛</button>
   <button class="btn btn-purple" onclick="showTechTree()">🔬 科技树</button>
   <button class="btn btn-secondary" onclick="showCounterModal()">📋 相克表</button>
+  <button class="btn btn-secondary" onclick="showUnitListModal()">💂 兵种列表</button>
   <div class="speed-control">
     <label>⚡</label>
     <input type="range" min="50" max="800" value="300" id="speedSlider" oninput="updateSpeed()">
@@ -794,6 +811,17 @@
       <button class="modal-close" onclick="closeTechModal()">×</button>
     </div>
     <div id="techTreeContent"></div>
+  </div>
+</div>
+
+<!-- 兵种列表弹窗 -->
+<div class="modal-overlay" id="unitListModal">
+  <div class="modal-content" style="max-width:800px;">
+    <div class="modal-header">
+      <div class="modal-title">💂 兵种列表</div>
+      <button class="modal-close" onclick="closeUnitListModal()">×</button>
+    </div>
+    <div id="unitListContent"></div>
   </div>
 </div>
 
@@ -1525,6 +1553,63 @@ function showCounterModal() {
 
 function closeCounterModal() {
   document.getElementById("counterModal").style.display = "none";
+}
+
+function showUnitListModal() {
+  const modal = document.getElementById("unitListModal");
+  const content = document.getElementById("unitListContent");
+  
+  // 统计双方兵种
+  const getUnitList = (army, owner) => {
+    const counts = {};
+    army.filter(u => !u.dead).forEach(u => {
+      counts[u.type] = (counts[u.type] || 0) + 1;
+    });
+    return counts;
+  };
+  
+  const blueCounts = getUnitList(blueBrain?.army || [], "蓝");
+  const redCounts = getUnitList(redBrain?.army || [], "红");
+  
+  // 生成兵种列表HTML
+  const renderSide = (counts, color, colorName) => {
+    if (Object.keys(counts).length === 0) {
+      return `<div class="unit-list-empty">暂无兵种</div>`;
+    }
+    let html = `<div class="unit-list-grid">`;
+    for (const [type, count] of Object.entries(counts)) {
+      const unit = UNITS_V2[type] || HEROES[type];
+      if (!unit) continue;
+      const icon = unit.icon || "�_emoji-placeholder_�";
+      const name = unit.name || type;
+      html += `<div class="unit-list-item">${icon} <span>${name}</span> <span class="unit-count">x${count}</span></div>`;
+    }
+    html += `</div>`;
+    return html;
+  };
+  
+  const blueHtml = renderSide(blueCounts, "blue", "蓝方");
+  const redHtml = renderSide(redCounts, "red", "红方");
+  
+  let html = `
+    <div class="unit-list-container">
+      <div class="unit-list-side">
+        <div class="unit-list-title" style="color:#3498db">🔵 蓝方兵种</div>
+        ${blueHtml}
+      </div>
+      <div class="unit-list-side">
+        <div class="unit-list-title" style="color:#e74c3c">🔴 红方兵种</div>
+        ${redHtml}
+      </div>
+    </div>
+  `;
+  
+  content.innerHTML = html;
+  modal.style.display = "flex";
+}
+
+function closeUnitListModal() {
+  document.getElementById("unitListModal").style.display = "none";
 }
 
 function showTechTree() {
