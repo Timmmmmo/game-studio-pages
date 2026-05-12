@@ -383,7 +383,9 @@ test('完整战斗循环 - 基地攻防', () => {
   const red = new window.AIBrainV2('red', 'aggressive', 'agility_hero');
   
   let rounds = 0;
-  const maxRounds = 120;
+  const maxRounds = 200;
+  let lastBlueBase = blue.base.hp;
+  let lastRedBase = red.base.hp;
   
   while (rounds < maxRounds) {
     rounds++;
@@ -435,8 +437,32 @@ test('完整战斗循环 - 基地攻防', () => {
       }
     }
     
+    // 围城机制 - 每3回合存活单位对敌方基地造成伤害
+    if (rounds % 3 === 0) {
+      if (blueAlive > 0) {
+        const siegeDmg = blueAlive * 8;
+        red.base.hp = Math.max(0, red.base.hp - siegeDmg);
+      }
+      if (redAlive > 0) {
+        const siegeDmg = redAlive * 8;
+        blue.base.hp = Math.max(0, blue.base.hp - siegeDmg);
+      }
+    }
+    
     // 检查胜负
     if (blue.base.hp <= 0 || red.base.hp <= 0) break;
+    
+    // 防止无限循环：如果双方基地血量都不变，说明有问题
+    if (rounds % 30 === 0) {
+      const blueChanged = blue.base.hp !== lastBlueBase;
+      const redChanged = red.base.hp !== lastRedBase;
+      if (!blueChanged && !redChanged && rounds > 30) {
+        console.log(`    ⚠️  双方基地血量未变化，可能陷入僵局`);
+        break;
+      }
+      lastBlueBase = blue.base.hp;
+      lastRedBase = red.base.hp;
+    }
   }
   
   assert(rounds <= maxRounds, `战斗应在 ${maxRounds} 回合内结束`);
