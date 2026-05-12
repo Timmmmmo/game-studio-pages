@@ -734,9 +734,11 @@
   <div class="stat-item"><div class="stat-value" id="roundNum">0</div><div class="stat-label">回合</div></div>
   <div class="stat-item"><div class="stat-value" id="blueAlive">0</div><div class="stat-label">蓝方存活</div></div>
   <div class="stat-item"><div class="stat-value" id="redAlive">0</div><div class="stat-label">红方存活</div></div>
-  <div class="stat-item"><div class="stat-value" id="actionCount">0</div><div class="stat-label">行动数</div></div>
   <div class="stat-item blue-stat"><div class="stat-value" id="blueDamage">0</div><div class="stat-label">蓝方伤害</div></div>
   <div class="stat-item red-stat"><div class="stat-value" id="redDamage">0</div><div class="stat-label">红方伤害</div></div>
+  <div class="stat-item blue-stat"><div class="stat-value" id="blueKills">0</div><div class="stat-label">蓝方击杀</div></div>
+  <div class="stat-item red-stat"><div class="stat-value" id="redKills">0</div><div class="stat-label">红方击杀</div></div>
+  <div class="stat-item"><div class="stat-value" id="actionCount">0</div><div class="stat-label">行动数</div></div>
 </div>
 
 <!-- 结果横幅 -->
@@ -808,6 +810,8 @@ let roundNum = 0;
 let actionCount = 0;
 let blueDamage = 0;
 let redDamage = 0;
+let blueKills = 0;
+let redKills = 0;
 let incomeTimerId = null;
 let incomeTimerStart = 0;
 const INCOME_INTERVAL = 2000; // 2秒收入周期
@@ -1069,6 +1073,8 @@ function stopIncomeTimer() {
 function updateStatsDisplay() {
   document.getElementById("blueDamage").textContent = blueDamage;
   document.getElementById("redDamage").textContent = redDamage;
+  document.getElementById("blueKills").textContent = blueKills;
+  document.getElementById("redKills").textContent = redKills;
 }
 
 function updateTimerUI() {
@@ -1100,6 +1106,8 @@ async function startBattle() {
   actionCount = 0;
   blueDamage = 0;
   redDamage = 0;
+  blueKills = 0;
+  redKills = 0;
   updateStatsDisplay();
   blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
   redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
@@ -1169,8 +1177,9 @@ async function startBattle() {
 
     // 规则2: 持续攻城 - 每3回合，存活单位对敌方基地造成少量伤害（模拟围城压力）
     if (roundNum % 3 === 0 && roundNum > 0) {
-      if (blueAlive > 0 && redAlive >= 0) {
-        const siegeDmg = blueAlive * 8; // 每个存活单位8点围城伤害
+      if (blueAlive > 0) {
+        const result = attackBase(blueBrain.army.filter(u => !u.dead), redBrain.base, "red");
+        const siegeDmg = Math.max(0, Math.round(result.totalDmg * 0.5)); // 围城压力：50%伤害
         redBrain.base.hp -= siegeDmg;
         if (redBrain.base.hp < 0) redBrain.base.hp = 0;
         if (siegeDmg > 0) {
@@ -1181,8 +1190,9 @@ async function startBattle() {
         }
         updateBaseDisplay();
       }
-      if (redAlive > 0 && blueAlive >= 0) {
-        const siegeDmg = redAlive * 8;
+      if (redAlive > 0) {
+        const result = attackBase(redBrain.army.filter(u => !u.dead), blueBrain.base, "blue");
+        const siegeDmg = Math.max(0, Math.round(result.totalDmg * 0.5)); // 围城压力：50%伤害
         blueBrain.base.hp -= siegeDmg;
         if (blueBrain.base.hp < 0) blueBrain.base.hp = 0;
         if (siegeDmg > 0) {
@@ -1208,6 +1218,20 @@ async function startBattle() {
       const cls = blueBrain.base.hp <= 0 ? "result-red" : "result-blue";
       showBanner(`🏆 ${winner} 摧毁敌方基地，获胜！`, cls);
       logContainer.innerHTML += `<div style='color:#f39c12;font-weight:bold;margin-top:10px'>🏰 ${winner} 获胜！敌方基地已被摧毁！</div>`;
+      // 战斗统计摘要
+      const winnerDamage = winner === "蓝方" ? blueDamage : redDamage;
+      const loserDamage = winner === "蓝方" ? redDamage : blueDamage;
+      const winnerKills = winner === "蓝方" ? blueKills : redKills;
+      const loserKills = winner === "蓝方" ? redKills : blueKills;
+      logContainer.innerHTML += `
+        <div style='background:rgba(0,0,0,0.3);padding:10px;margin-top:10px;border-radius:8px'>
+          <div style='color:#f39c12;font-weight:bold;margin-bottom:5px'>📊 战斗统计</div>
+          <div style='display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:0.9rem'>
+            <div style='color:#3498db'>🔵 蓝方: ${blueDamage}伤害 | ${blueKills}击杀</div>
+            <div style='color:#e74c3c'>🔴 红方: ${redDamage}伤害 | ${redKills}击杀</div>
+            <div style='grid-column:1/-1;color:#888'>⏱️ 战斗持续 ${roundNum} 回合</div>
+          </div>
+        </div>`;
       document.getElementById("btnBattle").disabled = false;
       document.getElementById("btnPause").disabled = true;
       break;
@@ -1281,6 +1305,9 @@ async function executeRound() {
           if (action.killed) {
             logText += ` 💀击杀`;
             logClass += " log-kill";
+            // 追踪击杀统计
+            if (unit.owner === "blue") blueKills++;
+            else redKills++;
           }
 
           roundLog += `<div class="log-entry ${logClass}">${logText}</div>`;
@@ -1393,14 +1420,16 @@ async function startTournament() {
           attackBase(brain2.army, brain1.base, "blue");
         }
 
-        // 持续攻城 - 每3回合围城伤害
+        // 持续攻城 - 每3回合围城伤害（基于实际单位伤害的50%）
         if (cycle % 3 === 0 && cycle > 0) {
           if (alive1 > 0) {
-            const siegeDmg = alive1 * 8;
+            const result = attackBase(brain1.army.filter(u => !u.dead), brain2.base, "red");
+            const siegeDmg = Math.max(0, Math.round(result.totalDmg * 0.5));
             brain2.base.hp = Math.max(0, brain2.base.hp - siegeDmg);
           }
           if (alive2 > 0) {
-            const siegeDmg = alive2 * 8;
+            const result = attackBase(brain2.army.filter(u => !u.dead), brain1.base, "blue");
+            const siegeDmg = Math.max(0, Math.round(result.totalDmg * 0.5));
             brain1.base.hp = Math.max(0, brain1.base.hp - siegeDmg);
           }
         }
