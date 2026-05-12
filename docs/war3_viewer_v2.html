@@ -809,6 +809,7 @@
   <button class="btn btn-purple" onclick="showTechTree()">🔬 科技树</button>
   <button class="btn btn-secondary" onclick="showCounterModal()">📋 相克表</button>
   <button class="btn btn-secondary" onclick="showUnitListModal()">💂 兵种列表</button>
+  <button class="btn btn-secondary" id="btnSound" onclick="toggleSound()">🔊 音效</button>
   <div class="speed-control">
     <label>⚡</label>
     <input type="range" min="50" max="800" value="300" id="speedSlider" oninput="updateSpeed()">
@@ -956,6 +957,11 @@ function togglePause() {
     btn.classList.remove("btn-warning");
     btn.classList.add("btn-secondary");
   }
+}
+
+function toggleSound() {
+  const on = AudioEngine.toggle();
+  document.getElementById("btnSound").textContent = on ? "🔊 音效" : "🔇 静音";
 }
 
 // ==================== 渲染函数 ====================
@@ -1199,6 +1205,7 @@ function updateTimerUI() {
 async function startBattle() {
   if (battleRunning) return;
   battleRunning = true;
+  AudioEngine.startBattle();
 
   // 禁用按钮
   document.getElementById("btnBattle").disabled = true;
@@ -1268,6 +1275,7 @@ async function startBattle() {
       if (result.totalDmg > 0) {
         logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方全军压境！攻击红方基地！造成 ${result.totalDmg} 伤害 (红方基地: ${redBrain.base.hp}/${redBrain.base.maxHp})</div>`;
         showBaseDamage("red", result.totalDmg);
+        AudioEngine.baseHit();
       }
       updateBaseDisplay();
     }
@@ -1276,6 +1284,7 @@ async function startBattle() {
       if (result.totalDmg > 0) {
         logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方全军压境！攻击蓝方基地！造成 ${result.totalDmg} 伤害 (蓝方基地: ${blueBrain.base.hp}/${blueBrain.base.maxHp})</div>`;
         showBaseDamage("blue", result.totalDmg);
+        AudioEngine.baseHit();
       }
       updateBaseDisplay();
     }
@@ -1290,6 +1299,7 @@ async function startBattle() {
         if (siegeDmg > 0) {
           logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方围城！对红方基地造成 ${siegeDmg} 伤害</div>`;
           showBaseDamage("red", siegeDmg);
+          AudioEngine.baseHit();
           blueDamage += siegeDmg;
           updateStatsDisplay();
         }
@@ -1303,6 +1313,7 @@ async function startBattle() {
         if (siegeDmg > 0) {
           logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方围城！对蓝方基地造成 ${siegeDmg} 伤害</div>`;
           showBaseDamage("blue", siegeDmg);
+          AudioEngine.baseHit();
           redDamage += siegeDmg;
           updateStatsDisplay();
         }
@@ -1322,6 +1333,7 @@ async function startBattle() {
       const winner = blueBrain.base.hp <= 0 ? "红方" : "蓝方";
       const cls = blueBrain.base.hp <= 0 ? "result-red" : "result-blue";
       showBanner(`🏆 ${winner} 摧毁敌方基地，获胜！`, cls);
+      if (winner === "蓝方") AudioEngine.victory(); else AudioEngine.defeat();
       logContainer.innerHTML += `<div style='color:#f39c12;font-weight:bold;margin-top:10px'>🏰 ${winner} 获胜！敌方基地已被摧毁！</div>`;
       // 战斗统计摘要
       const winnerDamage = winner === "蓝方" ? blueDamage : redDamage;
@@ -1381,15 +1393,18 @@ async function executeRound() {
       if (action.type === "skill") {
         animations[unit.idx] = "skill-active";
         playSkillEffect(unit, action.skillName);
+        if (SKILL_SOUNDS[action.skillName]) SKILL_SOUNDS[action.skillName]();
         roundLog += `<div class="log-entry log-skill">${unit.icon} ${unit.name} 使用 ${action.icon} ${action.skillName}！</div>`;
       } else if (action.type === "disease_cloud") {
         // V3.0.9: 疾病云雾特效
         playSkillEffect(unit, "disease_cloud");
+        AudioEngine.disease();
         roundLog += `<div class="log-entry log-skill">${unit.icon} ${unit.name} ☠️疾病云雾 感染${action.targets}个敌人！</div>`;
       } else if (action.type === "attack") {
         animations[unit.idx] = "attacking";
         if (action.target) animations[action.target.idx] = "hit";
         playAttackEffect(unit);
+        AudioEngine.attack();
 
         let logClass = unit.owner === "blue" ? "log-blue" : "log-red";
         let logText = `${unit.icon} ${unit.name} → ${action.target.icon} ${action.target.name}`;
@@ -1398,19 +1413,23 @@ async function executeRound() {
           logText += ` 💨闪避！`;
           roundLog += `<div class="log-entry ${logClass} log-evade">${logText}</div>`;
           showDamageNumber(action.target, "闪避", "evade");
+          AudioEngine.evade();
         } else {
           logText += ` ${action.damage} 伤害`;
           if (action.crit) {
             logText = `${unit.icon} ${unit.name} ⚡暴击！→ ${action.target.icon} ${action.target.name} ${action.damage} 伤害`;
             logClass += " log-crit";
             showDamageNumber(action.target, action.damage, "crit");
+            AudioEngine.crit();
           } else {
             showDamageNumber(action.target, action.damage, "damage");
+            AudioEngine.hit();
           }
 
           if (action.healed) {
             logText += ` 🩸+${action.healed}`;
             showDamageNumber(unit, `+${action.healed}`, "heal");
+            AudioEngine.heal();
           }
 
           if (action.killed) {
@@ -1422,6 +1441,7 @@ async function executeRound() {
             // V3.0.9 击杀特效
             playKillEffect(action.target);
             showKillAnnounce(unit.name, action.target.name);
+            AudioEngine.kill();
           }
 
           roundLog += `<div class="log-entry ${logClass}">${logText}</div>`;
@@ -1554,6 +1574,100 @@ function playBattleFlash() {
   document.body.appendChild(div);
   setTimeout(() => div.remove(), 300);
 }
+
+// ==================== V3.1.0 Web Audio 音效系统 ====================
+const AudioEngine = (() => {
+  let ctx = null;
+  let enabled = true;
+  let volume = 0.3;
+
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function play(freq, type, dur, vol = 1, freqEnd = null) {
+    if (!enabled) return;
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime);
+      if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 20), c.currentTime + dur);
+      gain.gain.setValueAtTime(vol * volume, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + dur);
+    } catch(e) {}
+  }
+
+  function noise(dur, vol = 0.3) {
+    if (!enabled) return;
+    try {
+      const c = getCtx();
+      const bufferSize = c.sampleRate * dur;
+      const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+      const src = c.createBufferSource();
+      src.buffer = buffer;
+      const gain = c.createGain();
+      gain.gain.setValueAtTime(vol * volume, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      src.connect(gain);
+      gain.connect(c.destination);
+      src.start(c.currentTime);
+    } catch(e) {}
+  }
+
+  return {
+    attack()   { noise(0.06, 0.2); play(200, 'sawtooth', 0.06, 0.15, 80); },
+    crit()     { noise(0.1, 0.4); play(300, 'square', 0.1, 0.2, 600); play(150, 'sawtooth', 0.15, 0.15, 50); },
+    hit()      { play(400, 'sine', 0.05, 0.1, 200); },
+    evade()    { play(800, 'sine', 0.08, 0.1, 1200); },
+    heal()     { play(523, 'sine', 0.12, 0.15); setTimeout(() => play(659, 'sine', 0.12, 0.15), 80); setTimeout(() => play(784, 'sine', 0.15, 0.15), 160); },
+    kill()     { play(200, 'sawtooth', 0.15, 0.25, 60); noise(0.15, 0.3); },
+    skill()    { play(440, 'sine', 0.1, 0.15, 880); setTimeout(() => play(660, 'triangle', 0.15, 0.12), 60); },
+    thunder()  { noise(0.3, 0.5); play(80, 'sawtooth', 0.3, 0.3, 30); },
+    lightning(){ play(1200, 'sawtooth', 0.05, 0.25, 200); noise(0.08, 0.3); setTimeout(() => play(800, 'sawtooth', 0.04, 0.2, 400), 40); },
+    blizzard() { play(600, 'sine', 0.2, 0.15, 1200); noise(0.25, 0.2); },
+    heal_wave(){ play(523, 'sine', 0.1, 0.12); setTimeout(() => play(659, 'sine', 0.1, 0.12), 70); setTimeout(() => play(784, 'sine', 0.1, 0.12), 140); setTimeout(() => play(1047, 'sine', 0.15, 0.15), 210); },
+    storm_bolt(){ play(900, 'sawtooth', 0.04, 0.3, 150); noise(0.1, 0.25); },
+    mirror()   { play(600, 'triangle', 0.08, 0.12, 1200); setTimeout(() => play(800, 'triangle', 0.08, 0.1, 1600), 50); },
+    wind_walk(){ play(1000, 'sine', 0.15, 0.08, 2000); },
+    summon()   { play(200, 'sine', 0.2, 0.15, 600); play(400, 'triangle', 0.2, 0.1, 800); },
+    slow()     { play(300, 'triangle', 0.15, 0.12, 150); },
+    disease()  { play(150, 'sawtooth', 0.2, 0.1, 80); },
+    shackle()  { play(1000, 'square', 0.05, 0.15, 500); play(500, 'square', 0.1, 0.1, 250); },
+    victory()  { [0,150,300,450,600].forEach((d,i) => setTimeout(() => play([523,659,784,1047,1319][i], 'sine', 0.25, 0.2), d)); },
+    defeat()   { [0,200,400].forEach((d,i) => setTimeout(() => play([400,300,200][i], 'sine', 0.3, 0.15, [300,200,100][i]), d)); },
+    baseHit()  { noise(0.15, 0.35); play(100, 'sawtooth', 0.15, 0.2, 40); },
+    startBattle(){ play(440, 'triangle', 0.1, 0.15); setTimeout(() => play(660, 'triangle', 0.1, 0.15), 100); setTimeout(() => play(880, 'triangle', 0.2, 0.2), 200); },
+    toggle()   { enabled = !enabled; return enabled; },
+    isOn()     { return enabled; },
+    setVol(v)  { volume = Math.max(0, Math.min(1, v)); },
+    getVol()   { return volume; }
+  };
+})();
+
+// 音效-技能映射表
+const SKILL_SOUNDS = {
+  thunder_clap: () => AudioEngine.thunder(),
+  storm_bolt: () => AudioEngine.storm_bolt(),
+  chain_lightning: () => AudioEngine.lightning(),
+  blizzard: () => AudioEngine.blizzard(),
+  healing_wave: () => AudioEngine.heal_wave(),
+  slow: () => AudioEngine.slow(),
+  mirror_image: () => AudioEngine.mirror(),
+  wind_walk: () => AudioEngine.wind_walk(),
+  summon_water_elemental: () => AudioEngine.summon(),
+  disease_cloud: () => AudioEngine.disease(),
+  aerial_shackle: () => AudioEngine.shackle(),
+  hero_ultimate: () => { AudioEngine.thunder(); setTimeout(() => AudioEngine.lightning(), 150); }
+};
 
 // ==================== 锦标赛模式 ====================
 async function startTournament() {
