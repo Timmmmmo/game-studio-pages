@@ -234,6 +234,8 @@
     .stat-item { text-align: center; }
     .stat-value { font-size: 1.4rem; font-weight: bold; color: #f39c12; }
     .stat-label { font-size: 0.7rem; color: #666; }
+    .stat-item.blue-stat .stat-value { color: #3498db; }
+    .stat-item.red-stat .stat-value { color: #e74c3c; }
 
     /* === 战斗舞台 === */
     .battle-stage {
@@ -733,6 +735,8 @@
   <div class="stat-item"><div class="stat-value" id="blueAlive">0</div><div class="stat-label">蓝方存活</div></div>
   <div class="stat-item"><div class="stat-value" id="redAlive">0</div><div class="stat-label">红方存活</div></div>
   <div class="stat-item"><div class="stat-value" id="actionCount">0</div><div class="stat-label">行动数</div></div>
+  <div class="stat-item blue-stat"><div class="stat-value" id="blueDamage">0</div><div class="stat-label">蓝方伤害</div></div>
+  <div class="stat-item red-stat"><div class="stat-value" id="redDamage">0</div><div class="stat-label">红方伤害</div></div>
 </div>
 
 <!-- 结果横幅 -->
@@ -802,6 +806,8 @@ let blueBrain = null;
 let redBrain = null;
 let roundNum = 0;
 let actionCount = 0;
+let blueDamage = 0;
+let redDamage = 0;
 let incomeTimerId = null;
 let incomeTimerStart = 0;
 const INCOME_INTERVAL = 2000; // 2秒收入周期
@@ -1060,6 +1066,11 @@ function stopIncomeTimer() {
 }
 
 // 更新计时器UI
+function updateStatsDisplay() {
+  document.getElementById("blueDamage").textContent = blueDamage;
+  document.getElementById("redDamage").textContent = redDamage;
+}
+
 function updateTimerUI() {
   if (!battleRunning || !incomeTimerStart) {
     document.getElementById("timerFill").style.width = "0%";
@@ -1087,6 +1098,9 @@ async function startBattle() {
   // 重置
   roundNum = 0;
   actionCount = 0;
+  blueDamage = 0;
+  redDamage = 0;
+  updateStatsDisplay();
   blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
   redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
 
@@ -1162,6 +1176,8 @@ async function startBattle() {
         if (siegeDmg > 0) {
           logContainer.innerHTML += `<div class="log-entry log-base">🏰 蓝方围城！对红方基地造成 ${siegeDmg} 伤害</div>`;
           showBaseDamage("red", siegeDmg);
+          blueDamage += siegeDmg;
+          updateStatsDisplay();
         }
         updateBaseDisplay();
       }
@@ -1172,6 +1188,8 @@ async function startBattle() {
         if (siegeDmg > 0) {
           logContainer.innerHTML += `<div class="log-entry log-base">🏰 红方围城！对蓝方基地造成 ${siegeDmg} 伤害</div>`;
           showBaseDamage("blue", siegeDmg);
+          redDamage += siegeDmg;
+          updateStatsDisplay();
         }
         updateBaseDisplay();
       }
@@ -1266,6 +1284,10 @@ async function executeRound() {
           }
 
           roundLog += `<div class="log-entry ${logClass}">${logText}</div>`;
+          // 追踪伤害统计
+          if (unit.owner === "blue") blueDamage += action.damage || 0;
+          else redDamage += action.damage || 0;
+          updateStatsDisplay();
         }
       }
     }
@@ -1356,7 +1378,8 @@ async function startTournament() {
         for (const u of all) {
           if (u.dead) continue;
           const enemies = u.owner === "blue" ? brain2.army : brain1.army;
-          u.act(enemies, [], []);
+          const allies = u.owner === "blue" ? brain1.army : brain2.army;
+          u.act(enemies, allies, []);
         }
 
         // 基地攻击
