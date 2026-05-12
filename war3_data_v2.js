@@ -319,7 +319,57 @@ const SKILLS = {
       }
       return { targets: 0 };
     }
+  },
+
+  // ===== V3.0.8 新增技能 =====
+  slow: {
+    name: "缓慢",
+    type: "active",
+    desc: "减慢敌人攻速和移速3回合",
+    icon: "🐌",
+    cooldown: 3,
+    manaCost: 40,
+    effect: (unit, enemies) => {
+      const target = enemies.filter(e => !e.dead)[0];
+      if (target) {
+        target.slowed = 3;
+        return { targets: 1, slowed: true };
+      }
+      return { targets: 0 };
+    }
+  },
+
+  disease_cloud: {
+    name: "疾病云雾",
+    type: "passive",
+    desc: "攻击时对周围敌人造成5点/回合持续伤害",
+    icon: "☠️",
+    effect: (unit, enemies) => {
+      const nearby = enemies.filter(e => !e.dead && Math.abs(e.pos - unit.pos) <= 2);
+      nearby.forEach(t => {
+        t.hp -= 5;
+      });
+      return { targets: nearby.length, dotDamage: 5 };
+    }
+  },
+
+  aerial_shackle: {
+    name: "空中锁缚",
+    type: "active",
+    desc: "锁定一个敌方单位使其无法行动2回合",
+    icon: "⛓️",
+    cooldown: 5,
+    manaCost: 60,
+    effect: (unit, enemies) => {
+      const target = enemies.filter(e => !e.dead)[0];
+      if (target) {
+        target.stunned = 2;
+        return { targets: 1, stunned: true };
+      }
+      return { targets: 0 };
+    }
   }
+
 };
 
 // ==================== 科技系统 ====================
@@ -746,7 +796,72 @@ const UNITS_V2 = {
     tier: 2,
     desc: "大法师召唤的水元素",
     isSummon: true
+  },
+
+  // ===== V3.0.8 新增兵种（参考War3数值比例） =====
+  sorceress: {
+    name: "女巫",
+    icon: "🧙‍♀️",
+    cost: 145,
+    goldCost: 125,
+    lumberCost: 20,
+    hp: 245,
+    damage: 9,
+    attackType: "magic",
+    armorType: "light",
+    armor: 0,
+    speed: 300,
+    range: "ranged",
+    mana: 100,
+    maxMana: 100,
+    manaRegen: 3,
+    skills: ["slow"],
+    tier: 2,
+    desc: "魔法单位，可释放缓慢技能克制重甲敌人"
+  },
+
+  dragonhawk: {
+    name: "龙鹰骑士",
+    icon: "🦅",
+    cost: 200,
+    goldCost: 180,
+    lumberCost: 30,
+    hp: 475,
+    damage: 22,
+    attackType: "pierce",
+    armorType: "light",
+    armor: 1,
+    speed: 350,
+    range: "ranged",
+    mana: 80,
+    maxMana: 80,
+    manaRegen: 2,
+    skills: ["aerial_shackle"],
+    tier: 2,
+    desc: "飞行单位，穿刺攻击克制轻甲，可锁定敌人"
+  },
+
+  abomination: {
+    name: "憎恶",
+    icon: "🧟",
+    cost: 215,
+    goldCost: 195,
+    lumberCost: 40,
+    hp: 735,
+    damage: 36,
+    attackType: "normal",
+    armorType: "heavy",
+    armor: 2,
+    speed: 260,
+    range: "melee",
+    mana: 0,
+    maxMana: 0,
+    manaRegen: 0,
+    skills: ["disease_cloud"],
+    tier: 2,
+    desc: "重甲坦克，普通攻击+疾病云雾持续伤害"
   }
+
 };
 
 // ==================== 单位类（增强版） ====================
@@ -944,6 +1059,19 @@ class UnitV2 {
       healed = result.healed;
     }
 
+    // V3.0.8: 疾病云雾被动 - 攻击时对周围敌人造成持续伤害
+    if (this.skills.includes("disease_cloud")) {
+      const result = SKILLS.disease_cloud.effect(this, enemies);
+      if (result.targets > 0) {
+        actions.push({
+          type: "disease_cloud",
+          unit: this,
+          targets: result.targets,
+          dotDamage: result.dotDamage
+        });
+      }
+    }
+
     actions.push({
       type: "attack",
       unit: this,
@@ -1087,6 +1215,8 @@ class AIBrainV2 {
       if (u.skills && u.skills.includes("healing_wave")) analysis.hasHealer = true;
       if (u.skills && (u.skills.includes("blizzard") || u.skills.includes("thunder_clap"))) analysis.hasAOE = true;
       if (u.skills && u.skills.includes("summon_water_elemental")) analysis.hasSummoner = true;
+      if (u.skills && u.skills.includes("slow")) analysis.hasSlower = true;
+      if (u.skills && u.skills.includes("disease_cloud")) analysis.hasDoT = true;
     });
 
     return analysis;
@@ -1196,18 +1326,23 @@ class AIBrainV2 {
           score += 30;
         }
 
-        // 根据敌人调整评分
+        // 根据敌人调整评分 - V3.0.8 增强克制逻辑
         if (analysis) {
-          // 针对敌方护甲
-          const counterMult = DAMAGE_TABLE[unit.attackType]?.[Object.keys(analysis.armorDistribution).sort((a, b) =>
-            analysis.armorDistribution[b] - analysis.armorDistribution[a])[0]] ?? 1;
-          score += counterMult * 30;
+          // 针对敌方护甲分布计算加权克制评分
+          let counterScore = 0;
+          for (const [armorType, count] of Object.entries(analysis.armorDistribution)) {
+            const mult = DAMAGE_TABLE[unit.attackType]?.[armorType] ?? 1;
+            counterScore += (mult - 1) * count * 50; // 越克制越高分，按敌人数基加权
+          }
+          score += counterScore;
 
-          // 针对敌方攻击类型
-          const mainEnemyAttack = Object.keys(analysis.attackDistribution).sort((a, b) =>
-            analysis.attackDistribution[b] - analysis.attackDistribution[a])[0];
-          const defMult = DAMAGE_TABLE[mainEnemyAttack]?.[unit.armorType] ?? 1;
-          score -= defMult * 20;
+          // 针对敌方攻击类型 - 选择不被克制的护甲
+          let defScore = 0;
+          for (const [atkType, count] of Object.entries(analysis.attackDistribution)) {
+            const mult = DAMAGE_TABLE[atkType]?.[unit.armorType] ?? 1;
+            defScore -= (mult - 1) * count * 30; // 被克制扣分
+          }
+          score += defScore;
         }
 
         // 策略加成
