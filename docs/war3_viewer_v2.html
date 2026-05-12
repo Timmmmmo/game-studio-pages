@@ -452,6 +452,80 @@
       100% { transform: scale(1.5); opacity: 0; }
     }
 
+    /* === V3.0.9 引擎特效 === */
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      border-radius: 50%;
+      animation: particleFly 0.8s ease-out forwards;
+    }
+    @keyframes particleFly {
+      0% { transform: translate(0, 0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+    }
+    .unit-card.stunned-overlay::after {
+      content: '💫';
+      position: absolute;
+      top: 2px; right: 2px;
+      font-size: 1.1rem;
+      animation: stunSpin 1s linear infinite;
+    }
+    .unit-card.slowed-overlay::after {
+      content: '🐌';
+      position: absolute;
+      top: 2px; right: 2px;
+      font-size: 1.1rem;
+    }
+    .unit-card.kill-streak {
+      animation: killFlash 0.5s ease-out;
+      box-shadow: 0 0 25px rgba(231,76,60,0.8);
+    }
+    @keyframes killFlash {
+      0% { filter: brightness(2); }
+      100% { filter: brightness(1); }
+    }
+    @keyframes stunSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .unit-card.dying {
+      animation: deathFade 0.6s ease-out forwards;
+    }
+    @keyframes deathFade {
+      0% { transform: scale(1); opacity: 1; filter: grayscale(0); }
+      50% { transform: scale(1.1); opacity: 0.7; filter: grayscale(0.5); }
+      100% { transform: scale(0.8); opacity: 0.3; filter: grayscale(1); }
+    }
+    .battle-flash {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 9999;
+      animation: flashFade 0.3s ease-out forwards;
+    }
+    @keyframes flashFade {
+      0% { background: rgba(255,255,255,0.3); }
+      100% { background: transparent; }
+    }
+    .kill-announce {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2rem;
+      font-weight: bold;
+      color: #e74c3c;
+      text-shadow: 0 0 20px rgba(231,76,60,0.8);
+      pointer-events: none;
+      z-index: 9999;
+      animation: killAnnounce 1.2s ease-out forwards;
+    }
+    @keyframes killAnnounce {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      20% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+      80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+    }
+
     /* === 战斗日志 === */
     .log-section {
       max-width: 1100px;
@@ -915,9 +989,12 @@ function renderArmy(units, containerId, animations = {}) {
     const isNewUnit = u._newSpawn ? "new-unit" : "";
     if (u._newSpawn) u._newSpawn = false; // 只高亮一次
     const isHero = u.isHero ? "hero" : "";
+    // V3.0.9 状态效果覆盖层
+    const stunnedOverlay = u.stunned > 0 ? "stunned-overlay" : "";
+    const slowedOverlay = u.slowed > 0 ? "slowed-overlay" : "";
 
     return `
-      <div class="unit-card ${animClass} ${isNewUnit} ${isHero}" id="unit-${u.owner}-${u.idx}">
+      <div class="unit-card ${animClass} ${isNewUnit} ${isHero} ${stunnedOverlay} ${slowedOverlay}" id="unit-${u.owner}-${u.idx}">
         <div class="unit-icon">${u.icon}</div>
         <div class="unit-info">
           <div class="unit-name-row">
@@ -1303,10 +1380,16 @@ async function executeRound() {
 
       if (action.type === "skill") {
         animations[unit.idx] = "skill-active";
+        playSkillEffect(unit, action.skillName);
         roundLog += `<div class="log-entry log-skill">${unit.icon} ${unit.name} 使用 ${action.icon} ${action.skillName}！</div>`;
+      } else if (action.type === "disease_cloud") {
+        // V3.0.9: 疾病云雾特效
+        playSkillEffect(unit, "disease_cloud");
+        roundLog += `<div class="log-entry log-skill">${unit.icon} ${unit.name} ☠️疾病云雾 感染${action.targets}个敌人！</div>`;
       } else if (action.type === "attack") {
         animations[unit.idx] = "attacking";
         if (action.target) animations[action.target.idx] = "hit";
+        playAttackEffect(unit);
 
         let logClass = unit.owner === "blue" ? "log-blue" : "log-red";
         let logText = `${unit.icon} ${unit.name} → ${action.target.icon} ${action.target.name}`;
@@ -1336,6 +1419,9 @@ async function executeRound() {
             // 追踪击杀统计
             if (unit.owner === "blue") blueKills++;
             else redKills++;
+            // V3.0.9 击杀特效
+            playKillEffect(action.target);
+            showKillAnnounce(unit.name, action.target.name);
           }
 
           roundLog += `<div class="log-entry ${logClass}">${logText}</div>`;
@@ -1392,6 +1478,81 @@ function showBaseDamage(side, totalDmg) {
 
   layer.appendChild(div);
   setTimeout(() => div.remove(), 1200);
+}
+
+// ==================== V3.0.9 粒子特效系统 ====================
+function spawnParticles(x, y, color, count = 8) {
+  const layer = document.getElementById("animationLayer");
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+    const dist = 30 + Math.random() * 40;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+    p.style.cssText = `left:${x}px;top:${y}px;width:${4+Math.random()*4}px;height:${4+Math.random()*4}px;background:${color};--dx:${dx}px;--dy:${dy}px;`;
+    layer.appendChild(p);
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+function playAttackEffect(unit) {
+  const card = document.getElementById(`unit-${unit.owner}-${unit.idx}`);
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  spawnParticles(x, y, "#f39c12", 5); // 橙色攻击粒子
+}
+
+function playSkillEffect(unit, skillName) {
+  const card = document.getElementById(`unit-${unit.owner}-${unit.idx}`);
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  const colors = {
+    thunder_clap: "#3498db",
+    storm_bolt: "#9b59b6",
+    chain_lightning: "#00d4ff",
+    blizzard: "#ecf0f1",
+    healing_wave: "#27ae60",
+    slow: "#8e44ad",
+    mirror_image: "#e67e22",
+    wind_walk: "#1abc9c",
+    summon_water_elemental: "#2980b9",
+    disease_cloud: "#27ae60",
+    aerial_shackle: "#95a5a6",
+    hero_ultimate: "#e74c3c"
+  };
+  const color = colors[skillName] || "#9b59b6";
+  spawnParticles(x, y, color, 12); // 技能更多粒子
+}
+
+function playKillEffect(unit) {
+  const card = document.getElementById(`unit-${unit.owner}-${unit.idx}`);
+  if (!card) return;
+  const rect = card.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  spawnParticles(x, y, "#e74c3c", 15); // 红色击杀粒子
+  card.classList.add("dying");
+  setTimeout(() => card.classList.remove("dying"), 600);
+}
+
+function showKillAnnounce(killerName, victimName) {
+  const div = document.createElement("div");
+  div.className = "kill-announce";
+  div.textContent = `💀 ${killerName} 击杀 ${victimName}`;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 1200);
+}
+
+function playBattleFlash() {
+  const div = document.createElement("div");
+  div.className = "battle-flash";
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 300);
 }
 
 // ==================== 锦标赛模式 ====================

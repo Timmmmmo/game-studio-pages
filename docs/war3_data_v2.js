@@ -82,23 +82,6 @@ const SKILLS = {
   },
 
   // 主动技能
-  thunder_clap: {
-    name: "雷霆一击",
-    type: "active",
-    desc: "对周围敌人造成40伤害并减速",
-    icon: "⛈️",
-    cooldown: 3,
-    manaCost: 50,
-    effect: (unit, enemies) => {
-      const targets = enemies.filter(e => !e.dead && Math.abs(e.pos - unit.pos) <= 2);
-      targets.forEach(t => {
-        t.hp -= 40;
-        t.slowed = 2; // 减速2回合
-      });
-      return { targets: targets.length, damage: 40 };
-    }
-  },
-
   healing_wave: {
     name: "治疗波",
     type: "active",
