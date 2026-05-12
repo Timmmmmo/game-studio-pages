@@ -22,13 +22,18 @@ const ATTACK_TYPES = {
   hero: { name: "英雄", color: "#f39c12", desc: "英雄专属攻击" }
 };
 
-// 伤害倍率表
+// 伤害倍率表 - 优化相克关系
 const DAMAGE_TABLE = {
-  normal: { none: 1.0, light: 1.5, medium: 1.5, heavy: 1.0, fortified: 0.5, hero: 1.0 },
-  pierce: { none: 1.5, light: 1.5, medium: 0.7, heavy: 0.7, fortified: 0.3, hero: 0.5 },
-  magic:  { none: 1.0, light: 1.5, medium: 1.5, heavy: 1.2, fortified: 0.5, hero: 0.5 },
-  siege:  { none: 0.5, light: 0.5, medium: 1.5, heavy: 1.5, fortified: 2.0, hero: 0.3 },
-  hero:   { none: 1.0, light: 1.0, medium: 1.0, heavy: 1.0, fortified: 0.5, hero: 1.0 }
+  // 普通攻击：克制轻甲，被重甲/城防克制
+  normal: { none: 1.0, light: 1.5, medium: 1.0, heavy: 0.7, fortified: 0.5, hero: 1.0 },
+  // 穿刺攻击：克制无甲/轻甲，被中甲/重甲/城防克制
+  pierce: { none: 1.5, light: 2.0, medium: 0.75, heavy: 0.7, fortified: 0.5, hero: 0.5 },
+  // 魔法攻击：克制重甲，被轻甲/中甲克制
+  magic:  { none: 1.0, light: 1.0, medium: 0.75, heavy: 1.25, fortified: 0.5, hero: 0.75 },
+  // 攻城攻击：克制城防，被轻甲/中甲/重甲克制
+  siege:  { none: 1.0, light: 1.0, medium: 0.5, heavy: 0.5, fortified: 1.5, hero: 0.5 },
+  // 英雄攻击：全类型平衡
+  hero:   { none: 1.0, light: 1.0, medium: 1.0, heavy: 1.0, fortified: 1.0, hero: 1.0 }
 };
 
 // ==================== 技能系统 ====================
