@@ -190,13 +190,20 @@ const SKILLS = {
   mirror_image: {
     name: "镜像分身",
     type: "active",
-    desc: "创造2个分身迷惑敌人",
+    desc: "创造分身迷惑敌人（上限3个，总召唤上限4个）",
     icon: "👥",
     cooldown: 8,
     manaCost: 120,
     effect: (unit, allies) => {
-      // 创建2个镜像分身（使用UnitV2确保有act方法）
-      for (let i = 0; i < 2; i++) {
+      // V3.2.0 召唤物上限检查
+      const totalSummons = allies.filter(u => (u.isSummon || u.isMirror) && !u.dead).length;
+      const existingMirrors = allies.filter(u => u.isMirror && !u.dead).length;
+      if (totalSummons >= 4) return { targets: 0, clone: false, reason: '总召唤物已达上限(4)' };
+      if (existingMirrors >= 3) return { targets: 0, clone: false, reason: '镜像分身已达上限(3)' };
+      // 创建镜像分身（数量为2，但受上限约束）
+      const canCreate = Math.min(2, 4 - totalSummons, 3 - existingMirrors);
+      let created = 0;
+      for (let i = 0; i < canCreate; i++) {
         try {
           const clone = new UnitV2(unit.type, unit.owner, allies.length, unit.isHero);
           clone.type = unit.type + '_mirror';
@@ -205,6 +212,7 @@ const SKILLS = {
           clone.max_hp = Math.floor(unit.max_hp * 0.3);
           clone.damage = Math.floor(unit.damage * 0.1); // 镜像伤害降低到10%
           clone.isMirror = true;
+          clone.isSummon = true; // V3.2.0 标记为召唤物
           clone.dead = false;
           clone.skills = []; // 镜像无技能
           clone.skillCooldowns = {};
@@ -212,12 +220,12 @@ const SKILLS = {
           clone.maxMana = 0;
           clone._marked = true;
           allies.push(clone);
+          created++;
         } catch(e) {
-          // 如果UnitV2创建失败，跳过
           console.warn('镜像创建失败:', e.message);
         }
       }
-      return { targets: 2, clone: true };
+      return { targets: created, clone: true };
     }
   },
 
@@ -245,11 +253,11 @@ const SKILLS = {
     manaCost: 150,
     effect: (unit, allies) => {
       // 用 UnitV2 创建水元素，使其能正常参与战斗
-      // 限制场上水元素数量不超过2个
+      // V3.2.0 召唤物上限：总召唤物≤4，水元素≤2
+      const totalSummons = allies.filter(u => (u.isSummon || u.isMirror) && !u.dead).length;
       const existingCount = allies.filter(u => u.type === 'water_elemental' && !u.dead).length;
-      if (existingCount >= 2) {
-        return { targets: 0, summon: false, reason: '数量已达上限' };
-      }
+      if (totalSummons >= 4) return { targets: 0, summon: false, reason: '总召唤物已达上限(4)' };
+      if (existingCount >= 2) return { targets: 0, summon: false, reason: '水元素已达上限(2)' };
       const elemental = new UnitV2("water_elemental", unit.owner, allies.length);
       elemental.hp = 400;
       elemental.max_hp = 400;
@@ -1173,6 +1181,8 @@ class AIBrainV2 {
     this.base = { hp: 3000, maxHp: 3000, armor: 20, armorType: 'fortified', name: '基地', icon: '🏰' };
     this.strategyPhase = "early"; // early, mid, late
     this.turnCount = 0;
+    this.heroLevel = 1; // V3.2.0 英雄等级
+    this.heroReviveTimer = 0; // V3.2.0 复活倒计时
   }
 
   // 分析敌方阵容
@@ -1353,10 +1363,12 @@ class AIBrainV2 {
             break;
         }
 
-        // 现有阵容平衡 - 增加多样性惩罚，强制生产不同类型单位
+        // V3.2.0 多样性强制：硬上限5个+强力惩罚
         const currentTypes = [...this.army, ...choices.map(c => UNITS_V2[c])];
         const sameType = currentTypes.filter(u => u.type === unitType).length;
-        score -= sameType * 35; // 强化多样性惩罚，鼓励生产不同类型单位
+        // 硬上限：同类型最多5个，超过直接跳过
+        if (sameType >= 5) continue;
+        score -= sameType * 60; // V3.2.0 加大多样性惩罚 35→60
 
         if (score > bestScore) {
           bestScore = score;
@@ -1380,11 +1392,11 @@ class AIBrainV2 {
     this.army = this.army.filter(u => !u.dead && (!u.isMirror || u.hp > 0));
     // 重新分配索引
     this.army.forEach((u, i) => { u.idx = i; });
-    // 检查英雄死亡（下一回合自动复活）
+    // 检查英雄死亡（V3.2.0 设置复活倒计时）
     if (this.hero && this.hero.dead) {
+      this.heroReviveTimer = this.heroLevel; // 等级越高，复活等待越久
       this.hasHero = false;
       this.hero = null;
-      // 英雄将在 takeTurn 的第1步自动复活
     }
   }
 
@@ -1412,20 +1424,40 @@ class AIBrainV2 {
     if (this.turnCount > 10) this.strategyPhase = "late";
     else if (this.turnCount > 5) this.strategyPhase = "mid";
 
-    // 1. 生成/复活英雄（免费，无需科技）
+    // 1. 生成/复活英雄（V3.2.0 等级系统：高等级复活时间更长、费用更高）
     let heroSpawned = null;
     let heroRevived = false;
     if (this.heroType && !this.hasHero) {
-      heroRevived = this.turnCount > 1; // 非首回合即为复活
-      this.hero = new UnitV2(this.heroType, this.name, 0, true);
-      // 如果之前有英雄死亡，复活时半血
-      if (heroRevived) {
-        this.hero.hp = Math.floor(this.hero.max_hp * 0.5);
+      if (this.heroReviveTimer > 0) {
+        // 复活倒计时中
+        this.heroReviveTimer--;
+      } else {
+        heroRevived = this.turnCount > 1; // 非首回合即为复活
+        this.hero = new UnitV2(this.heroType, this.name, 0, true);
+        this.hero.level = this.heroLevel;
+        // 等级加成：每级 +50HP, +2伤害, +0.5护甲
+        if (this.heroLevel > 1) {
+          const levelBonus = this.heroLevel - 1;
+          this.hero.max_hp += levelBonus * 50;
+          this.hero.hp = Math.floor(this.hero.max_hp * 0.5); // 复活半血
+          this.hero.damage += levelBonus * 2;
+          this.hero.armor += levelBonus * 0.5;
+          // 扣除复活费用：等级*100金
+          const reviveCost = this.heroLevel * 100;
+          const state = this.resources.getState();
+          if (state.gold >= reviveCost) {
+            this.resources.gold -= reviveCost;
+          }
+          this.heroLevel++; // 复活后等级提升
+        } else {
+          // 首次生成，满血
+          this.hero.hp = this.hero.max_hp;
+        }
+        this.hero._marked = true;
+        this.army.unshift(this.hero);
+        this.hasHero = true;
+        heroSpawned = this.heroType;
       }
-      this.hero._marked = true;
-      this.army.unshift(this.hero);
-      this.hasHero = true;
-      heroSpawned = this.heroType;
     }
 
     // 2. 考虑科技升级
