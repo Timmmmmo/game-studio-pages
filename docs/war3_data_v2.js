@@ -1145,9 +1145,11 @@ class AIBrainV2 {
     const choices = [];
     const state = this.resources.getState();
 
-    // 确定可生产的单位
+    // 确定可生产的单位（排除召唤单位）
     const availableUnits = Object.keys(UNITS_V2).filter(u => {
       const unit = UNITS_V2[u];
+      // 排除召唤单位（水元素等只能通过技能召唤）
+      if (unit.isSummon) return false;
       if (!this.resources.canAfford(u)) return false;
       if (unit.requires) {
         for (const req of unit.requires) {
