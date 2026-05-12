@@ -80,17 +80,17 @@ const SKILLS = {
   thunder_clap: {
     name: "雷霆一击",
     type: "active",
-    desc: "对周围敌人造成50伤害并减速",
+    desc: "对周围敌人造成40伤害并减速",
     icon: "⛈️",
     cooldown: 3,
     manaCost: 50,
     effect: (unit, enemies) => {
       const targets = enemies.filter(e => !e.dead && Math.abs(e.pos - unit.pos) <= 2);
       targets.forEach(t => {
-        t.hp -= 50;
+        t.hp -= 40;
         t.slowed = 2; // 减速2回合
       });
-      return { targets: targets.length, damage: 50 };
+      return { targets: targets.length, damage: 40 };
     }
   },
 
@@ -184,17 +184,17 @@ const SKILLS = {
   thunder_clap: {
     name: "雷霆一击",
     type: "active",
-    desc: "重击地面，对周围敌人造成80伤害并减速",
+    desc: "重击地面，对周围敌人造成60伤害并减速",
     icon: "⛈️",
     cooldown: 4,
     manaCost: 60,
     effect: (unit, enemies) => {
       const targets = enemies.filter(e => !e.dead);
       targets.forEach(t => {
-        t.hp -= 80;
+        t.hp -= 60;
         t.slowed = 3;
       });
-      return { targets: targets.length, damage: 80 };
+      return { targets: targets.length, damage: 60 };
     }
   },
 
@@ -215,7 +215,7 @@ const SKILLS = {
           clone.name = unit.name + '(镜像)';
           clone.hp = Math.floor(unit.hp * 0.3);
           clone.max_hp = Math.floor(unit.max_hp * 0.3);
-          clone.damage = Math.floor(unit.damage * 0.2);
+          clone.damage = Math.floor(unit.damage * 0.1); // 镜像伤害降低到10%
           clone.isMirror = true;
           clone.dead = false;
           clone.skills = []; // 镜像无技能
@@ -253,10 +253,15 @@ const SKILLS = {
     type: "active",
     desc: "召唤水元素协助作战",
     icon: "🌊",
-    cooldown: 15,
+    cooldown: 25,
     manaCost: 150,
     effect: (unit, allies) => {
       // 用 UnitV2 创建水元素，使其能正常参与战斗
+      // 限制场上水元素数量不超过2个
+      const existingCount = allies.filter(u => u.type === 'water_elemental' && !u.dead).length;
+      if (existingCount >= 2) {
+        return { targets: 0, summon: false, reason: '数量已达上限' };
+      }
       const elemental = new UnitV2("water_elemental", unit.owner, allies.length);
       elemental.hp = 400;
       elemental.max_hp = 400;
@@ -1151,7 +1156,8 @@ class AIBrainV2 {
 
     // 根据策略选择单位
     const livingCount = this.army.filter(u => !u.dead).length;
-    const targetArmySize = this.strategyPhase === "early" ? 3 : this.strategyPhase === "mid" ? 6 : 9;
+    // 提高目标军队规模，更积极地出兵
+    const targetArmySize = this.strategyPhase === "early" ? 6 : this.strategyPhase === "mid" ? 10 : 14;
     const maxToProduce = Math.max(0, targetArmySize - livingCount);
 
     let produceCount = 0;
@@ -1165,9 +1171,18 @@ class AIBrainV2 {
 
         let score = 0;
 
-        // 基础评分：性价比
-        score += unit.damage / unit.cost * 100;
-        score += unit.hp / unit.cost * 50;
+        // 基础评分：性价比 - 更注重伤害输出
+        score += unit.damage / unit.cost * 150; // 提高伤害权重
+        score += unit.hp / unit.cost * 30; // 降低HP权重
+
+        // 针对基地（城甲）的奖励 - 攻城单位有2倍伤害
+        if (unit.attackType === "siege") {
+          score += 80; // 强力奖励攻城单位
+        }
+        // 魔法对城甲也有一定效果（0.5倍）
+        if (unit.attackType === "magic" && unit.tier >= 2) {
+          score += 30;
+        }
 
         // 根据敌人调整评分
         if (analysis) {
@@ -1187,6 +1202,8 @@ class AIBrainV2 {
         switch (this.personality) {
           case "aggressive":
             // 激进Rush策略：前期快速爆兵，或升级T2出强力兵种
+            // 优先攻城单位（对基地有2倍伤害）
+            if (unit.attackType === "siege") score += 80;
             if (unit.attackType === "normal") score += 25;
             if (unit.tier === 1 && this.strategyPhase === "early") score += 40; // 前期爆兵
             if (unit.tier === 3) score += 30;
@@ -1287,9 +1304,9 @@ class AIBrainV2 {
       this.resources.researchTech(techChoice);
     }
 
-    // 3. 生产单位（场上单位上限12，不含英雄）
+    // 3. 生产单位（场上单位上限15，不含英雄）
     const livingCount = this.army.filter(u => !u.dead).length;
-    if (livingCount < 13) {
+    if (livingCount < 16) {
       const newUnits = this.decideProduction(enemyArmy);
       newUnits.forEach(u => {
         const unit = new UnitV2(u, this.name, this.army.length);
