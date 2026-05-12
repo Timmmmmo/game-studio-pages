@@ -954,6 +954,11 @@ class UnitV2 {
       healed
     });
 
+    // 魔法回复（每回合回复manaRegen）
+    if (this.manaRegen && this.mana < this.maxMana) {
+      this.mana = Math.min(this.maxMana, this.mana + this.manaRegen);
+    }
+
     return actions;
   }
 }
