@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>⚔️ 魔兽兵种对战 V3 - 基地攻防版</title>
+  <title>⚔️ 魔兽兵种对战 V3.4 - 基地攻防版</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -568,6 +568,7 @@
     .log-income { color: #f39c12; }
     .log-base { color: #e74c3c; font-weight: bold; }
     .log-spawn { color: #27ae60; }
+    .log-spawn span { color: #888; font-size: 0.75rem; }
     .log-tech { color: #9b59b6; }
 
     /* === 结果横幅 === */
@@ -716,6 +717,117 @@
       color: #f39c12;
     }
 
+    /* === V3.3.0 移动端增强 === */
+    @media (max-width: 700px) {
+      .arena-row { flex-direction: column; }
+      .army-panel { min-width: auto; }
+      .resource-bar { gap: 10px; }
+      .resource-panel { padding: 6px 10px; font-size: 0.85rem; }
+      .base-bar { gap: 10px; }
+      .base-panel { min-width: auto; }
+      .controls { gap: 5px; padding: 8px; }
+      .btn { padding: 8px 12px; font-size: 0.8rem; }
+      .header h1 { font-size: 1.3rem; }
+      .stats-bar { gap: 15px; flex-wrap: wrap; }
+      .stat-value { font-size: 1.1rem; }
+      .log-box { max-height: 150px; font-size: 0.75rem; }
+      .unit-card { padding: 6px 8px; gap: 8px; }
+      .unit-icon { font-size: 1.2rem; width: 32px; }
+      .unit-name { font-size: 0.8rem; }
+      .counter-table { font-size: 0.75rem; }
+      .modal-content { margin: 10px; max-width: calc(100vw - 20px); max-height: 90vh; }
+      .tech-panel { padding: 8px; }
+      .speed-control { display: none; }
+      .income-timer { font-size: 0.75rem; padding: 4px 8px; }
+      /* 触摸友好按钮 */
+      .btn { min-height: 40px; touch-action: manipulation; }
+      .btn-small { min-height: 36px; }
+    }
+    @media (max-width: 400px) {
+      .header h1 { font-size: 1.1rem; }
+      .resource-panel { gap: 6px; }
+      .resource-value { font-size: 0.9rem; }
+      .unit-stats { min-width: 40px; }
+      .unit-dmg { font-size: 0.75rem; }
+    }
+
+    /* === V3.3.0 统计面板 === */
+    .stats-modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .stats-modal-grid .full-width {
+      grid-column: 1 / -1;
+    }
+    .stats-section {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .stats-section h3 {
+      color: #f39c12;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+    .stats-bar-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      font-size: 0.8rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stats-bar-item .bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin: 0 8px;
+      overflow: hidden;
+    }
+    .stats-bar-item .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .timeline-item {
+      font-size: 0.75rem;
+      padding: 2px 0;
+      color: #aaa;
+    }
+
+    /* === V3.3.0 难度选择器 === */
+    .difficulty-selector {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.05);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .difficulty-selector label {
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+    .diff-btn {
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      background: transparent;
+      color: #888;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .diff-btn.active {
+      background: rgba(243,156,18,0.3);
+      border-color: #f39c12;
+      color: #f39c12;
+      font-weight: bold;
+    }
+    .diff-btn:hover {
+      border-color: rgba(255,255,255,0.4);
+    }
+
     /* === 响应式 === */
     @media (max-width: 700px) {
       .arena-row { flex-direction: column; }
@@ -809,7 +921,14 @@
   <button class="btn btn-purple" onclick="showTechTree()">🔬 科技树</button>
   <button class="btn btn-secondary" onclick="showCounterModal()">📋 相克表</button>
   <button class="btn btn-secondary" onclick="showUnitListModal()">💂 兵种列表</button>
+  <button class="btn btn-secondary" id="btnStats" onclick="showBattleStats()" disabled>📊 战报</button>
   <button class="btn btn-secondary" id="btnSound" onclick="toggleSound()">🔊 音效</button>
+  <div class="difficulty-selector">
+    <label>🎯</label>
+    <button class="diff-btn" data-diff="easy" onclick="setDifficulty('easy')">简单</button>
+    <button class="diff-btn active" data-diff="normal" onclick="setDifficulty('normal')">普通</button>
+    <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard')">困难</button>
+  </div>
   <div class="speed-control">
     <label>⚡</label>
     <input type="range" min="50" max="800" value="300" id="speedSlider" oninput="updateSpeed()">
@@ -900,8 +1019,19 @@
   </div>
 </div>
 
-<script src="war3_data_v2.js?v=3.0.0-20260512"></script>
-<script src="war3_expansion.js?v=3.0.0-20260512"></script>
+<!-- V3.3.0 战报统计弹窗 -->
+<div class="modal-overlay" id="statsModal">
+  <div class="modal-content" style="max-width:750px;">
+    <div class="modal-header">
+      <div class="modal-title">📊 战斗统计</div>
+      <button class="modal-close" onclick="closeStatsModal()">×</button>
+    </div>
+    <div id="statsContent"></div>
+  </div>
+</div>
+
+<script src="war3_data_v2.js?v=3.3.0-20260513"></script>
+<script src="war3_expansion.js?v=3.3.0-20260513"></script>
 <script>
 // ==================== 游戏状态 ====================
 let gameSpeed = 300;
@@ -919,14 +1049,25 @@ let incomeTimerId = null;
 let incomeTimerStart = 0;
 const INCOME_INTERVAL = 2000; // 2秒收入周期
 
+// V3.3.0 难度设定
+let gameDifficulty = "normal";
+const DIFF_NAMES = { easy: "简单", normal: "普通", hard: "困难" };
+
+function setDifficulty(diff) {
+  gameDifficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === diff);
+  });
+}
+
 // ==================== 英雄选择配置 ====================
 const BLUE_HERO_TYPE = "strength_hero";   // 蓝方使用力量型英雄
 const RED_HERO_TYPE = "agility_hero";     // 红方使用敏捷型英雄
 
 // ==================== 初始化 ====================
 function init() {
-  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
-  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
+  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE, gameDifficulty);
+  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE, gameDifficulty);
   updateResourceDisplay();
   updateBaseDisplay();
   renderArmy([], "blueArmy");
@@ -1104,9 +1245,9 @@ function startIncomeTimer() {
       return;
     }
 
-    // 添加收入
-    blueBrain.resources.addIncome();
-    redBrain.resources.addIncome();
+    // 添加收入（V3.3.0 难度影响收入）
+    blueBrain.addIncomeWithDifficulty();
+    redBrain.addIncomeWithDifficulty();
 
     const logContainer = document.getElementById("battleLog");
     const bs = blueBrain.resources.getState();
@@ -1114,6 +1255,9 @@ function startIncomeTimer() {
     logContainer.innerHTML += `<div class="log-entry log-income">💰 收入周期！蓝方 +${bs.goldPerTurn}金+${bs.lumberPerTurn}木 | 红方 +${rs.goldPerTurn}金+${rs.lumberPerTurn}木</div>`;
 
     // AI决策
+    const blueAnalysis = blueBrain.analyzeEnemy(redBrain.army.filter(u => !u.dead));
+    const redAnalysis = redBrain.analyzeEnemy(blueBrain.army.filter(u => !u.dead));
+
     const blueTurn = blueBrain.takeTurn(redBrain.army);
     const redTurn = redBrain.takeTurn(blueBrain.army);
 
@@ -1143,18 +1287,25 @@ function startIncomeTimer() {
       showHeroToast("🔴", heroInfo.name + (redTurn.heroRevived ? " 复活" : ""), heroInfo.icon);
     }
 
-    // 记录新单位
-    if (blueTurn.unitsProduced.length > 0) {
-      const names = blueTurn.unitsProduced.map(u => `${UNITS_V2[u]?.icon}${UNITS_V2[u]?.name}`).join(", ");
-      logContainer.innerHTML += `<div class="log-entry log-spawn">🔵 出兵: ${names}</div>`;
-      // 标记新单位
-      blueBrain.army.forEach(u => { if (!u._marked) { u._newSpawn = true; u._marked = true; }});
-    }
-    if (redTurn.unitsProduced.length > 0) {
-      const names = redTurn.unitsProduced.map(u => `${UNITS_V2[u]?.icon}${UNITS_V2[u]?.name}`).join(", ");
-      logContainer.innerHTML += `<div class="log-entry log-spawn">🔴 出兵: ${names}</div>`;
-      redBrain.army.forEach(u => { if (!u._marked) { u._newSpawn = true; u._marked = true; }});
-    }
+    // 记录新单位（V3.4.0 逐个显示AI推理）
+    const logProducedUnits = async (turn, color, colorEmoji) => {
+      if (turn.productionReasons && turn.productionReasons.length > 0) {
+        for (const pick of turn.productionReasons) {
+          const u = UNITS_V2[pick.type];
+          logContainer.innerHTML += `<div class="log-entry log-spawn">${colorEmoji} 生产 ${u?.icon || ''}${u?.name || pick.type} <span style="color:#888;font-size:0.75rem">(${pick.reason} ${pick.score}分)</span></div>`;
+          logContainer.scrollTop = logContainer.scrollHeight;
+          await sleep(400); // 逐个显示间隔
+        }
+        // 标记新单位
+        const brain = color === 'blue' ? blueBrain : redBrain;
+        brain.army.forEach(u => { if (!u._marked) { u._newSpawn = true; u._marked = true; }});
+      } else if (turn.unitsProduced && turn.unitsProduced.length > 0) {
+        const names = turn.unitsProduced.map(u => `${UNITS_V2[u]?.icon}${UNITS_V2[u]?.name}`).join(", ");
+        logContainer.innerHTML += `<div class="log-entry log-spawn">${colorEmoji} 出兵: ${names}</div>`;
+      }
+    };
+    await logProducedUnits(blueTurn, 'blue', '🔵');
+    await logProducedUnits(redTurn, 'red', '🔴');
 
     // 清理日志
     const entries = logContainer.querySelectorAll('.log-entry, .log-round');
@@ -1221,8 +1372,8 @@ async function startBattle() {
   blueKills = 0;
   redKills = 0;
   updateStatsDisplay();
-  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE);
-  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE);
+  blueBrain = new AIBrainV2("blue", "balanced", BLUE_HERO_TYPE, gameDifficulty);
+  redBrain = new AIBrainV2("red", "aggressive", RED_HERO_TYPE, gameDifficulty);
 
   updateResourceDisplay();
   updateBaseDisplay();
@@ -1351,6 +1502,7 @@ async function startBattle() {
         </div>`;
       document.getElementById("btnBattle").disabled = false;
       document.getElementById("btnPause").disabled = true;
+      document.getElementById("btnStats").disabled = false;
       break;
     }
 
@@ -1394,6 +1546,12 @@ async function executeRound() {
         animations[unit.idx] = "skill-active";
         playSkillEffect(unit, action.skillName);
         if (SKILL_SOUNDS[action.skillName]) SKILL_SOUNDS[action.skillName]();
+        // V3.3.0 技能使用统计
+        const skillBrain = unit.owner === "blue" ? blueBrain : redBrain;
+        skillBrain.battleStats.skillUsage[action.skillId] = (skillBrain.battleStats.skillUsage[action.skillId] || 0) + 1;
+        const skillDmg = action.result?.damage || 0;
+        skillBrain.battleStats.damageByUnit[unit.type] = (skillBrain.battleStats.damageByUnit[unit.type] || 0) + skillDmg;
+        skillBrain.battleStats.totalDamageDealt += skillDmg;
         roundLog += `<div class="log-entry log-skill">${unit.icon} ${unit.name} 使用 ${action.icon} ${action.skillName}！</div>`;
       } else if (action.type === "disease_cloud") {
         // V3.0.9: 疾病云雾特效
@@ -1438,6 +1596,10 @@ async function executeRound() {
             // 追踪击杀统计
             if (unit.owner === "blue") blueKills++;
             else redKills++;
+            // V3.3.0 详细击杀统计
+            const killerBrain = unit.owner === "blue" ? blueBrain : redBrain;
+            killerBrain.battleStats.killsByUnit[unit.type] = (killerBrain.battleStats.killsByUnit[unit.type] || 0) + 1;
+            killerBrain.battleStats.killTimeline.push({ round: roundNum, killer: unit.name, victim: action.target.name });
             // V3.0.9 击杀特效
             playKillEffect(action.target);
             showKillAnnounce(unit.name, action.target.name);
@@ -1448,6 +1610,10 @@ async function executeRound() {
           // 追踪伤害统计
           if (unit.owner === "blue") blueDamage += action.damage || 0;
           else redDamage += action.damage || 0;
+          // V3.3.0 详细伤害统计
+          const brain = unit.owner === "blue" ? blueBrain : redBrain;
+          brain.battleStats.damageByUnit[unit.type] = (brain.battleStats.damageByUnit[unit.type] || 0) + (action.damage || 0);
+          brain.battleStats.totalDamageDealt += action.damage || 0;
           updateStatsDisplay();
         }
       }
@@ -1885,6 +2051,100 @@ function showUnitListModal() {
 
 function closeUnitListModal() {
   document.getElementById("unitListModal").style.display = "none";
+}
+
+// ==================== V3.3.0 战斗统计面板 ====================
+function showBattleStats() {
+  const modal = document.getElementById("statsModal");
+  const content = document.getElementById("statsContent");
+  
+  if (!blueBrain || !redBrain) return;
+  
+  const bs = blueBrain.getBattleStats();
+  const rs = redBrain.getBattleStats();
+  
+  // 伤害排行
+  const renderDamageRanking = (stats, color) => {
+    const sorted = Object.entries(stats.damageByUnit).sort((a, b) => b[1] - a[1]);
+    const maxDmg = sorted.length > 0 ? sorted[0][1] : 1;
+    if (sorted.length === 0) return '<div style="color:#555;font-size:0.8rem">暂无数据</div>';
+    return sorted.slice(0, 8).map(([type, dmg]) => {
+      const u = UNITS_V2[type] || HEROES[type];
+      const name = u ? u.icon + ' ' + u.name : type;
+      const pct = Math.round(dmg / maxDmg * 100);
+      const barColor = color === 'blue' ? '#3498db' : '#e74c3c';
+      return `<div class="stats-bar-item">
+        <span>${name}</span>
+        <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <span style="color:${barColor}">${dmg}</span>
+      </div>`;
+    }).join('');
+  };
+  
+  // 击杀时间轴
+  const renderTimeline = (stats, color) => {
+    if (stats.killTimeline.length === 0) return '<div style="color:#555;font-size:0.8rem">暂无击杀</div>';
+    return stats.killTimeline.slice(-15).map(k => {
+      const c = color === 'blue' ? '#3498db' : '#e74c3c';
+      return `<div class="timeline-item" style="color:${c}">R${k.round}: ${k.killer} 💀 ${k.victim}</div>`;
+    }).join('');
+  };
+  
+  // 生产统计
+  const renderProduction = (stats) => {
+    const sorted = Object.entries(stats.unitsProduced).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) return '<div style="color:#555;font-size:0.8rem">暂无</div>';
+    return sorted.map(([type, count]) => {
+      const u = UNITS_V2[type] || HEROES[type];
+      const name = u ? u.icon + ' ' + u.name : type;
+      return `${name}×${count}`;
+    }).join(' | ');
+  };
+  
+  content.innerHTML = `
+    <div style="margin-bottom:12px;text-align:center;color:#888;font-size:0.85rem">
+      ⏱️ 战斗 ${roundNum} 回合 | 🎯 难度: ${DIFF_NAMES[gameDifficulty]}
+    </div>
+    <div class="stats-modal-grid">
+      <div class="stats-section">
+        <h3>🔵 蓝方伤害排行</h3>
+        ${renderDamageRanking(bs, 'blue')}
+      </div>
+      <div class="stats-section">
+        <h3>🔴 红方伤害排行</h3>
+        ${renderDamageRanking(rs, 'red')}
+      </div>
+      <div class="stats-section">
+        <h3>🔵 蓝方击杀</h3>
+        ${renderTimeline(bs, 'blue')}
+      </div>
+      <div class="stats-section">
+        <h3>🔴 红方击杀</h3>
+        ${renderTimeline(rs, 'red')}
+      </div>
+      <div class="stats-section full-width">
+        <h3>📦 兵种生产统计</h3>
+        <div style="margin-bottom:6px;color:#3498db;font-size:0.8rem">蓝方: ${renderProduction(bs)}</div>
+        <div style="color:#e74c3c;font-size:0.8rem">红方: ${renderProduction(rs)}</div>
+      </div>
+      <div class="stats-section full-width">
+        <h3>📈 总览</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.8rem">
+          <div>🔵 总伤害: <strong style="color:#3498db">${bs.totalDamageDealt}</strong></div>
+          <div>🔴 总伤害: <strong style="color:#e74c3c">${rs.totalDamageDealt}</strong></div>
+          <div>🔵 峰值军力: ${bs.peakArmySize}</div>
+          <div>🔴 峰值军力: ${rs.peakArmySize}</div>
+          <div>🔵 生产总数: ${Object.values(bs.unitsProduced).reduce((a,b)=>a+b,0)}</div>
+          <div>🔴 生产总数: ${Object.values(rs.unitsProduced).reduce((a,b)=>a+b,0)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.style.display = "flex";
+}
+
+function closeStatsModal() {
+  document.getElementById("statsModal").style.display = "none";
 }
 
 function showTechTree() {

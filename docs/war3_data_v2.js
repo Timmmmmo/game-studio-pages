@@ -2,7 +2,7 @@
 // 包含：技能系统、动画效果、资源管理、科技升级
 // Updated: 2026-05-10 v2.5.0 - 英雄系统
 
-const VERSION = "3.0.0";
+const VERSION = "3.4.0";
 
 // ==================== 攻击/护甲类型 ====================
 const ARMOR_TYPES = {
@@ -521,14 +521,14 @@ const UNITS_V2 = {
   footman: {
     name: "步兵",
     icon: "⚔️",
-    cost: 100,
-    goldCost: 100,
+    cost: 110,
+    goldCost: 110,
     lumberCost: 0,
-    hp: 500,
+    hp: 460,
     damage: 13,
     attackType: "normal",
     armorType: "medium",
-    armor: 5,
+    armor: 4,
     speed: 280,
     range: "melee",
     mana: 0,
@@ -541,21 +541,21 @@ const UNITS_V2 = {
   archer: {
     name: "弓箭手",
     icon: "🏹",
-    cost: 120,
-    goldCost: 120,
+    cost: 110,
+    goldCost: 110,
     lumberCost: 0,
-    hp: 300,
-    damage: 10,
+    hp: 320,
+    damage: 12,
     attackType: "pierce",
     armorType: "light",
     armor: 0,
-    speed: 320,
+    speed: 330,
     range: "ranged",
     mana: 0,
     maxMana: 0,
     skills: [],
     tier: 1,
-    desc: "远程穿刺单位，克制轻甲"
+    desc: "远程穿刺单位，克制轻甲，高攻速"
   },
 
   mage: {
@@ -564,7 +564,7 @@ const UNITS_V2 = {
     cost: 150,
     goldCost: 130,
     lumberCost: 20,
-    hp: 280,
+    hp: 300,
     damage: 18,
     attackType: "magic",
     armorType: "none",
@@ -642,11 +642,11 @@ const UNITS_V2 = {
   priest: {
     name: "牧师",
     icon: "✝️",
-    cost: 160,
-    goldCost: 140,
+    cost: 145,
+    goldCost: 125,
     lumberCost: 20,
-    hp: 320,
-    damage: 8,
+    hp: 340,
+    damage: 10,
     attackType: "magic",
     armorType: "light",
     armor: 1,
@@ -793,11 +793,11 @@ const UNITS_V2 = {
   sorceress: {
     name: "女巫",
     icon: "🧙‍♀️",
-    cost: 145,
-    goldCost: 125,
+    cost: 135,
+    goldCost: 115,
     lumberCost: 20,
-    hp: 245,
-    damage: 9,
+    hp: 265,
+    damage: 10,
     attackType: "magic",
     armorType: "light",
     armor: 0,
@@ -1170,10 +1170,11 @@ class ResourceManager {
 
 // ==================== AI策略（增强版） ====================
 class AIBrainV2 {
-  constructor(name, personality = "balanced", heroType = null) {
+  constructor(name, personality = "balanced", heroType = null, difficulty = "normal") {
     this.name = name;
     this.personality = personality; // aggressive, defensive, balanced, economic
     this.heroType = heroType; // strength_hero, agility_hero, intelligence_hero
+    this.difficulty = difficulty; // V3.3.0 easy, normal, hard
     this.hasHero = false;
     this.hero = null;
     this.resources = new ResourceManager(500, 500);
@@ -1183,6 +1184,25 @@ class AIBrainV2 {
     this.turnCount = 0;
     this.heroLevel = 1; // V3.2.0 英雄等级
     this.heroReviveTimer = 0; // V3.2.0 复活倒计时
+    // V3.3.0 战斗统计
+    this.battleStats = {
+      damageByUnit: {},   // { unitType: totalDamage }
+      skillUsage: {},     // { skillId: count }
+      killsByUnit: {},    // { unitType: killCount }
+      killTimeline: [],   // [{ round, killer, victim }]
+      totalDamageDealt: 0,
+      totalDamageTaken: 0,
+      unitsProduced: {},  // { unitType: count }
+      peakArmySize: 0
+    };
+
+    // V3.3.0 难度参数
+    const DIFFICULTY_PARAMS = {
+      easy:   { incomeMult: 0.7, armyCap: 12, scoreNoise: 40, techDelay: 2 },
+      normal: { incomeMult: 1.0, armyCap: 16, scoreNoise: 0,  techDelay: 0 },
+      hard:   { incomeMult: 1.3, armyCap: 20, scoreNoise: 0,  techDelay: 0, counterWeight: 1.5 }
+    };
+    this.diffParams = DIFFICULTY_PARAMS[difficulty] || DIFFICULTY_PARAMS.normal;
   }
 
   // 分析敌方阵容
@@ -1267,16 +1287,19 @@ class AIBrainV2 {
     return availableTechs[0];
   }
 
-  // 决定生产单位
-  decideProduction(enemyArmy) {
+  // V3.4.0 单个出兵决策（返回 {type, reason, score} 或 null）
+  decideOneUnit(enemyArmy) {
     const analysis = enemyArmy ? this.analyzeEnemy(enemyArmy) : null;
-    const choices = [];
     const state = this.resources.getState();
+    const livingCount = this.army.filter(u => !u.dead).length;
+    const armyCap = this.diffParams.armyCap;
+    if (livingCount >= armyCap) return null;
 
-    // 确定可生产的单位（排除召唤单位）
+    const targetArmySize = this.strategyPhase === "early" ? 6 : this.strategyPhase === "mid" ? 10 : 14;
+    if (livingCount >= targetArmySize) return null;
+
     const availableUnits = Object.keys(UNITS_V2).filter(u => {
       const unit = UNITS_V2[u];
-      // 排除召唤单位（水元素等只能通过技能召唤）
       if (unit.isSummon) return false;
       if (!this.resources.canAfford(u)) return false;
       if (unit.requires) {
@@ -1287,104 +1310,91 @@ class AIBrainV2 {
       return true;
     });
 
-    if (availableUnits.length === 0) return choices;
+    if (availableUnits.length === 0) return null;
 
-    // 根据策略选择单位
-    const livingCount = this.army.filter(u => !u.dead).length;
-    // 提高目标军队规模，更积极地出兵
-    const targetArmySize = this.strategyPhase === "early" ? 6 : this.strategyPhase === "mid" ? 10 : 14;
-    const maxToProduce = Math.max(0, targetArmySize - livingCount);
+    let bestChoice = null;
+    let bestScore = -Infinity;
+    let bestReason = "";
 
-    let produceCount = 0;
-    while (produceCount < maxToProduce) {
-      let bestChoice = null;
-      let bestScore = -Infinity;
+    for (const unitType of availableUnits) {
+      const unit = UNITS_V2[unitType];
+      if (!this.resources.canAfford(unitType)) continue;
 
-      for (const unitType of availableUnits) {
-        const unit = UNITS_V2[unitType];
-        if (!this.resources.canAfford(unitType)) continue;
+      let score = 0;
+      const reasons = [];
 
-        let score = 0;
-
-        // 基础评分：性价比 - 更注重伤害输出
-        score += unit.damage / unit.cost * 150; // 提高伤害权重
-        score += unit.hp / unit.cost * 30; // 降低HP权重
-
-        // 针对基地（城甲）的奖励 - 攻城单位有2倍伤害
-        if (unit.attackType === "siege") {
-          score += 80; // 强力奖励攻城单位
-        }
-        // 魔法对城甲也有一定效果（0.5倍）
-        if (unit.attackType === "magic" && unit.tier >= 2) {
-          score += 30;
-        }
-
-        // 根据敌人调整评分 - V3.0.8 增强克制逻辑
-        if (analysis) {
-          // 针对敌方护甲分布计算加权克制评分
-          let counterScore = 0;
-          for (const [armorType, count] of Object.entries(analysis.armorDistribution)) {
-            const mult = DAMAGE_TABLE[unit.attackType]?.[armorType] ?? 1;
-            counterScore += (mult - 1) * count * 50; // 越克制越高分，按敌人数基加权
-          }
-          score += counterScore;
-
-          // 针对敌方攻击类型 - 选择不被克制的护甲
-          let defScore = 0;
-          for (const [atkType, count] of Object.entries(analysis.attackDistribution)) {
-            const mult = DAMAGE_TABLE[atkType]?.[unit.armorType] ?? 1;
-            defScore -= (mult - 1) * count * 30; // 被克制扣分
-          }
-          score += defScore;
-        }
-
-        // 策略加成
-        switch (this.personality) {
-          case "aggressive":
-            // 激进Rush策略：前期快速爆兵，或升级T2出强力兵种
-            // 优先攻城单位（对基地有2倍伤害）
-            if (unit.attackType === "siege") score += 80;
-            if (unit.attackType === "normal") score += 25;
-            if (unit.tier === 1 && this.strategyPhase === "early") score += 40; // 前期爆兵
-            if (unit.tier === 3) score += 30;
-            // 考虑T2兵种（需要足够资源支撑）
-            if (unit.tier === 2) {
-              const state = this.resources.getState();
-              if (state.gold > 600) score += 15; // 有余钱才出T2
-            }
-            break;
-          case "defensive":
-            if (unit.armorType === "heavy") score += 20;
-            if (unit.hp > 500) score += 15;
-            break;
-          case "balanced":
-            // 需要治疗
-            if (analysis && analysis.hasHealer === false && unit.skills.includes("healing_wave")) score += 40;
-            break;
-        }
-
-        // V3.2.0 多样性强制：硬上限5个+强力惩罚
-        const currentTypes = [...this.army, ...choices.map(c => UNITS_V2[c])];
-        const sameType = currentTypes.filter(u => u.type === unitType).length;
-        // 硬上限：同类型最多5个，超过直接跳过
-        if (sameType >= 5) continue;
-        score -= sameType * 60; // V3.2.0 加大多样性惩罚 35→60
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestChoice = unitType;
-        }
+      if (this.diffParams.scoreNoise > 0) {
+        score += (Math.random() - 0.5) * this.diffParams.scoreNoise;
       }
 
-      if (bestChoice && this.resources.purchase(bestChoice)) {
-        choices.push(bestChoice);
-        produceCount++;
-      } else {
-        break;
+      score += unit.damage / unit.cost * 150;
+      score += unit.hp / unit.cost * 30;
+
+      if (unit.attackType === "siege") { score += 80; reasons.push("攻城"); }
+      if (unit.attackType === "magic" && unit.tier >= 2) { score += 30; reasons.push("魔法"); }
+
+      if (analysis) {
+        let counterWeight = this.diffParams.counterWeight || 1.0;
+        let counterScore = 0;
+        for (const [armorType, count] of Object.entries(analysis.armorDistribution)) {
+          const mult = DAMAGE_TABLE[unit.attackType]?.[armorType] ?? 1;
+          counterScore += (mult - 1) * count * 50 * counterWeight;
+        }
+        if (counterScore > 0) { score += counterScore; reasons.push("克制敌甲"); }
+
+        let defScore = 0;
+        for (const [atkType, count] of Object.entries(analysis.attackDistribution)) {
+          const mult = DAMAGE_TABLE[atkType]?.[unit.armorType] ?? 1;
+          defScore -= (mult - 1) * count * 30;
+        }
+        if (defScore < 0) { score += defScore; reasons.push("抗敌攻击"); }
+      }
+
+      switch (this.personality) {
+        case "aggressive":
+          if (unit.attackType === "siege") score += 80;
+          if (unit.attackType === "normal") score += 25;
+          if (unit.tier === 1 && this.strategyPhase === "early") { score += 40; reasons.push("前期爆兵"); }
+          if (unit.tier === 3) score += 30;
+          if (unit.tier === 2 && this.resources.getState().gold > 600) score += 15;
+          break;
+        case "defensive":
+          if (unit.armorType === "heavy") { score += 20; reasons.push("重甲"); }
+          if (unit.hp > 500) { score += 15; reasons.push("高血量"); }
+          break;
+        case "balanced":
+          if (analysis && analysis.hasHealer === false && unit.skills.includes("healing_wave")) {
+            score += 40; reasons.push("需要治疗");
+          }
+          break;
+      }
+
+      const sameType = this.army.filter(u => u.type === unitType).length;
+      if (sameType >= 5) continue;
+      score -= sameType * 60;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestChoice = unitType;
+        bestReason = reasons.length > 0 ? reasons.join(",") : "性价比";
       }
     }
 
-    return choices;
+    if (bestChoice && this.resources.purchase(bestChoice)) {
+      return { type: bestChoice, reason: bestReason, score: Math.round(bestScore) };
+    }
+    return null;
+  }
+
+  // 兼容旧接口（锦标赛模式用）
+  decideProduction(enemyArmy) {
+    const results = [];
+    for (let i = 0; i < 5; i++) {
+      const pick = this.decideOneUnit(enemyArmy);
+      if (!pick) break;
+      results.push(pick);
+    }
+    return results;
   }
 
   // 清理死亡单位（释放索引空间）
@@ -1466,33 +1476,41 @@ class AIBrainV2 {
       this.resources.researchTech(techChoice);
     }
 
-    // 3. 生产单位（场上单位上限15，不含英雄）
-    const livingCount = this.army.filter(u => !u.dead).length;
-    if (livingCount < 16) {
-      const newUnits = this.decideProduction(enemyArmy);
-      newUnits.forEach(u => {
-        const unit = new UnitV2(u, this.name, this.army.length);
-        unit._newSpawn = true;
-        unit._marked = true;
-        this.army.push(unit);
-      });
-      return {
-        techResearched: techChoice,
-        heroSpawned: heroSpawned,
-        heroRevived: heroRevived,
-        unitsProduced: newUnits,
-        resources: this.resources.getState()
-      };
+    // 3. 生产单位（V3.4.0 改用逐个决策，返回推理）
+    const armyCap = this.diffParams.armyCap;
+    const producedWithReasons = [];
+    for (let i = 0; i < 5; i++) {
+      const pick = this.decideOneUnit(enemyArmy);
+      if (!pick) break;
+      const unit = new UnitV2(pick.type, this.name, this.army.length);
+      unit._newSpawn = true;
+      unit._marked = true;
+      this.army.push(unit);
+      this.battleStats.unitsProduced[pick.type] = (this.battleStats.unitsProduced[pick.type] || 0) + 1;
+      this.battleStats.peakArmySize = Math.max(this.battleStats.peakArmySize, this.army.filter(x => !x.dead).length);
+      producedWithReasons.push(pick);
     }
 
     return {
       techResearched: techChoice,
       heroSpawned: heroSpawned,
       heroRevived: heroRevived,
-      unitsProduced: [],
+      unitsProduced: producedWithReasons.map(p => p.type),
+      productionReasons: producedWithReasons, // V3.4.0 推理信息
       resources: this.resources.getState()
     };
   }
+    // V3.3.0 收入倍率受难度影响
+    addIncomeWithDifficulty() {
+      const mult = this.diffParams ? this.diffParams.incomeMult : 1.0;
+      this.resources.gold += Math.round(this.resources.goldPerTurn * mult);
+      this.resources.lumber += Math.round(this.resources.lumberPerTurn * mult);
+    }
+
+    // 获取战斗统计
+    getBattleStats() {
+      return this.battleStats;
+    }
 }
 
 // ==================== 导出 ====================
