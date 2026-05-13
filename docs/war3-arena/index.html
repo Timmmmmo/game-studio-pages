@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚔️ 魔兽竞技场 - 玩家 vs AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a);
+      color: #e0e0e0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* === 开始画面 === */
+    #start-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    #start-screen h1 {
+      font-size: 3rem;
+      background: linear-gradient(90deg, #f39c12, #e74c3c, #9b59b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1rem;
+    }
+    #start-screen .subtitle {
+      font-size: 1.2rem;
+      color: #888;
+      margin-bottom: 3rem;
+    }
+    .mode-btn {
+      display: block;
+      width: 280px;
+      padding: 18px;
+      margin: 10px;
+      border: 2px solid;
+      border-radius: 12px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+    }
+    .mode-btn:hover { transform: scale(1.05); }
+    .mode-btn.battle { border-color: #3498db; }
+    .mode-btn.battle:hover { background: rgba(52,152,219,0.3); box-shadow: 0 0 20px rgba(52,152,219,0.5); }
+    .mode-btn.spectate { border-color: #9b59b6; }
+    .mode-btn.spectate:hover { background: rgba(155,89,182,0.3); box-shadow: 0 0 20px rgba(155,89,182,0.5); }
+
+    .difficulty-select {
+      margin-top: 2rem;
+      display: flex;
+      gap: 10px;
+    }
+    .diff-btn {
+      padding: 10px 24px;
+      border: 1px solid #555;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      color: #ccc;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .diff-btn:hover, .diff-btn.active { border-color: #f39c12; color: #f39c12; background: rgba(243,156,18,0.15); }
+
+    /* === 英雄选择 === */
+    #hero-select {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    #hero-select h2 {
+      font-size: 2rem;
+      color: #f39c12;
+      margin-bottom: 2rem;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 600px;
+    }
+    .hero-card {
+      padding: 20px;
+      border: 2px solid #444;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.5);
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .hero-card:hover { border-color: #f39c12; background: rgba(243,156,18,0.1); transform: scale(1.03); }
+    .hero-card .icon { font-size: 3rem; }
+    .hero-card .name { font-size: 1.3rem; font-weight: bold; margin: 8px 0; }
+    .hero-card .skills { font-size: 0.8rem; color: #888; }
+    .hero-card .stats { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
+
+    /* === 游戏主界面 === */
+    #game-screen {
+      display: none;
+      height: 100vh;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .header .turn-info { font-size: 1.1rem; }
+    .header .phase-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    .phase-player { background: #3498db; }
+    .phase-ai { background: #e74c3c; }
+    .phase-combat { background: #f39c12; }
+
+    /* 主区域：战斗场景 */
+    .battle-area {
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    /* 基地HP */
+    .bases {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .base-info {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+    }
+    .base-info.blue { margin-right: 8px; border-left: 3px solid #3498db; }
+    .base-info.red { margin-left: 8px; border-left: 3px solid #e74c3c; }
+    .base-info .label { font-size: 0.8rem; color: #888; }
+    .base-info .hp-bar { height: 12px; border-radius: 6px; background: #333; margin-top: 4px; overflow: hidden; }
+    .base-info .hp-fill { height: 100%; border-radius: 6px; transition: width 0.5s; }
+    .base-info.blue .hp-fill { background: linear-gradient(90deg, #2980b9, #3498db); }
+    .base-info.red .hp-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+    .base-info .hp-text { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+    /* 军队显示 */
+    .army-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      min-height: 50px;
+    }
+    .army-row.blue { background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.3); }
+    .army-row.red { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); }
+    .unit-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.3s;
+    }
+    .unit-chip.new { animation: spawn 0.5s ease-out; border-color: #2ecc71; }
+    .unit-chip.dead { opacity: 0.3; text-decoration: line-through; }
+    .unit-chip .hp-mini { font-size: 0.65rem; color: #aaa; }
+    @keyframes spawn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    /* 战斗日志 */
+    .combat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      max-height: 300px;
+    }
+    .combat-log .log-line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .log-attack { color: #e0e0e0; }
+    .log-kill { color: #e74c3c; font-weight: bold; }
+    .log-heal { color: #2ecc71; }
+    .log-skill { color: #9b59b6; }
+    .log-aoe { color: #f39c12; }
+    .log-siege { color: #e67e22; }
+    .log-crit { color: #ff6b6b; font-weight: bold; }
+    .log-spawn { color: #2ecc71; }
+
+    /* 右侧面板：操作区 */
+    .sidebar {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      overflow-y: auto;
+    }
+
+    .sidebar .resources {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .resources .res-row { display: flex; justify-content: space-between; margin: 4px 0; }
+    .res-gold { color: #f1c40f; }
+    .res-lumber { color: #27ae60; }
+
+    .sidebar .tech-section {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .tech-section h3 { font-size: 0.9rem; color: #888; margin-bottom: 6px; }
+    .tech-btn {
+      padding: 6px 12px;
+      margin: 4px;
+      border: 1px solid #555;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.3);
+      color: #ccc;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .tech-btn:hover:not(:disabled) { border-color: #f39c12; color: #f39c12; }
+    .tech-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .tech-btn.done { border-color: #27ae60; color: #27ae60; }
+
+    .sidebar .unit-shop {
+      flex: 1;
+      padding: 8px 12px;
+      overflow-y: auto;
+    }
+    .unit-shop h3 { font-size: 0.9rem; color: #888; margin-bottom: 6px; }
+    .shop-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .shop-card {
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .shop-card:hover:not(.locked) { border-color: #3498db; background: rgba(52,152,219,0.15); transform: scale(1.02); }
+    .shop-card.locked { opacity: 0.35; cursor: not-allowed; }
+    .shop-card .icon { font-size: 1.5rem; }
+    .shop-card .name { font-size: 0.85rem; font-weight: bold; margin: 4px 0; }
+    .shop-card .cost { font-size: 0.75rem; color: #f1c40f; }
+    .shop-card .stats-mini { font-size: 0.65rem; color: #888; }
+
+    /* 底部操作栏 */
+    .footer {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: rgba(0,0,0,0.6);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      gap: 12px;
+    }
+    .end-turn-btn {
+      padding: 12px 40px;
+      border: 2px solid #3498db;
+      border-radius: 10px;
+      background: rgba(52,152,219,0.2);
+      color: #3498db;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .end-turn-btn:hover { background: rgba(52,152,219,0.4); box-shadow: 0 0 15px rgba(52,152,219,0.5); }
+    .end-turn-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* 游戏结束 */
+    #game-over {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #game-over h2 { font-size: 3rem; margin-bottom: 1rem; }
+    #game-over .result { font-size: 1.5rem; margin-bottom: 2rem; }
+    #game-over button {
+      padding: 14px 40px;
+      border: 2px solid #f39c12;
+      border-radius: 10px;
+      background: transparent;
+      color: #f39c12;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    /* 移动端 */
+    @media (max-width: 700px) {
+      #game-screen {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr auto auto;
+      }
+      .sidebar { grid-column: 1; grid-row: 3; border-left: none; border-top: 1px solid rgba(255,255,255,0.1); }
+      .battle-area { grid-row: 2; max-height: 35vh; }
+      .shop-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 开始画面 -->
+<div id="start-screen">
+  <h1>⚔️ 魔兽竞技场</h1>
+  <p class="subtitle">玩家 vs AI 回合制策略对战</p>
+  <button class="mode-btn battle" onclick="startGame('battle')">🎮 对战模式 — 你是蓝方指挥官</button>
+  <button class="mode-btn spectate" onclick="startGame('spectate')">👁️ 观战模式 — AI vs AI</button>
+  <div class="difficulty-select">
+    <button class="diff-btn" data-diff="easy" onclick="setDiff(this)">🟢 简单</button>
+    <button class="diff-btn active" data-diff="normal" onclick="setDiff(this)">🟡 普通</button>
+    <button class="diff-btn" data-diff="hard" onclick="setDiff(this)">🔴 困难</button>
+  </div>
+</div>
+
+<!-- 英雄选择 -->
+<div id="hero-select">
+  <h2>选择你的英雄</h2>
+  <div class="hero-grid" id="hero-grid"></div>
+</div>
+
+<!-- 游戏主界面 -->
+<div id="game-screen">
+  <div class="header">
+    <div class="turn-info">回合 <span id="turn-num">1</span></div>
+    <div class="phase-badge phase-player" id="phase-badge">你的回合</div>
+    <div style="font-size:0.8rem;color:#666">V0.1.0</div>
+  </div>
+
+  <div class="battle-area">
+    <!-- 基地 -->
+    <div class="bases">
+      <div class="base-info blue">
+        <div class="label">🔵 蓝方基地</div>
+        <div class="hp-bar"><div class="hp-fill" id="blue-base-hp" style="width:100%"></div></div>
+        <div class="hp-text"><span id="blue-base-text">3000/3000</span></div>
+      </div>
+      <div class="base-info red">
+        <div class="label">🔴 红方基地</div>
+        <div class="hp-bar"><div class="hp-fill" id="red-base-hp" style="width:100%"></div></div>
+        <div class="hp-text"><span id="red-base-text">3000/3000</span></div>
+      </div>
+    </div>
+
+    <!-- 蓝方军队 -->
+    <div class="army-row blue" id="blue-army"></div>
+    <!-- 红方军队 -->
+    <div class="army-row red" id="red-army"></div>
+
+    <!-- 战斗日志 -->
+    <div class="combat-log" id="combat-log"></div>
+  </div>
+
+  <!-- 右侧操作面板 -->
+  <div class="sidebar">
+    <div class="resources">
+      <div class="res-row"><span>💰 金币</span><span class="res-gold" id="gold">500</span></div>
+      <div class="res-row"><span>🪵 木材</span><span class="res-lumber" id="lumber">500</span></div>
+      <div class="res-row" style="font-size:0.7rem;color:#666"><span>收入</span><span>+40金 / +20木</span></div>
+    </div>
+
+    <div class="tech-section">
+      <h3>🔬 科技</h3>
+      <div id="tech-buttons"></div>
+    </div>
+
+    <div class="unit-shop">
+      <h3>⚔️ 出兵</h3>
+      <div class="shop-grid" id="shop-grid"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="end-turn-btn" id="end-turn-btn" onclick="endTurn()">⚔️ 结束回合</button>
+  </div>
+</div>
+
+<!-- 游戏结束 -->
+<div id="game-over">
+  <h2 id="game-over-title">⚔️</h2>
+  <div class="result" id="game-over-result"></div>
+  <button onclick="location.reload()">🔄 再来一局</button>
+</div>
+
+<script src="game.js"></script>
+<script>
+  let game = null;
+  let selectedDifficulty = "normal";
+
+  function setDiff(btn) {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedDifficulty = btn.dataset.diff;
+  }
+
+  function startGame(mode) {
+    game = new Game(mode, selectedDifficulty);
+    document.getElementById('start-screen').style.display = 'none';
+
+    if (mode === "battle") {
+      showHeroSelect();
+    } else {
+      // 观战模式
+      document.getElementById('game-screen').style.display = 'grid';
+      // 蓝方也选个随机英雄
+      const heroes = Object.keys(HEROES);
+      game.selectHero(heroes[Math.floor(Math.random() * heroes.length)]);
+      setupGameUI();
+      spectateLoop();
+    }
+  }
+
+  function showHeroSelect() {
+    const grid = document.getElementById('hero-grid');
+    grid.innerHTML = '';
+    for (const [key, hero] of Object.entries(HEROES)) {
+      const card = document.createElement('div');
+      card.className = 'hero-card';
+      card.innerHTML = `
+        <div class="icon">${hero.icon}</div>
+        <div class="name">${hero.name}</div>
+        <div class="stats">HP:${hero.hp} ⚔️:${hero.damage} 🛡️:${hero.armor}</div>
+        <div class="skills">${hero.skills.join(', ')}</div>
+      `;
+      card.onclick = () => {
+        game.selectHero(key);
+        document.getElementById('hero-select').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'grid';
+        setupGameUI();
+      };
+      grid.appendChild(card);
+    }
+    document.getElementById('hero-select').style.display = 'flex';
+  }
+
+  function setupGameUI() {
+    // 注册事件
+    game.on('phaseChange', updatePhase);
+    game.on('unitProduced', () => updateUI());
+    game.on('techResearched', () => updateUI());
+    game.on('combatResolved', (log) => showCombatLog(log));
+    game.on('gameOver', (winner) => showGameOver(winner));
+    game.on('turnEnd', () => updateUI());
+
+    buildShop();
+    buildTechButtons();
+    updateUI();
+  }
+
+  function buildShop() {
+    const grid = document.getElementById('shop-grid');
+    grid.innerHTML = '';
+    for (const [key, unit] of Object.entries(UNITS)) {
+      if (unit.isHero) continue;
+      const card = document.createElement('div');
+      card.className = 'shop-card';
+      card.id = `shop-${key}`;
+      card.innerHTML = `
+        <div class="icon">${unit.icon}</div>
+        <div class="name">${unit.name}</div>
+        <div class="cost">💰${unit.cost} 🪵${unit.lumber}</div>
+        <div class="stats-mini">HP:${unit.hp} ⚔️:${unit.damage} 🛡️:${unit.armor}</div>
+      `;
+      card.onclick = () => playerBuy(key);
+      grid.appendChild(card);
+    }
+  }
+
+  function buildTechButtons() {
+    const container = document.getElementById('tech-buttons');
+    container.innerHTML = '';
+    for (const [key, tech] of Object.entries(TECHS)) {
+      const btn = document.createElement('button');
+      btn.className = 'tech-btn';
+      btn.id = `tech-${key}`;
+      btn.textContent = `${tech.name} 💰${tech.cost}🪵${tech.lumber}`;
+      btn.onclick = () => playerResearch(key);
+      container.appendChild(btn);
+    }
+  }
+
+  function playerBuy(type) {
+    const result = game.playerProduce(type);
+    if (!result.ok) {
+      flashMessage(result.reason);
+    }
+    updateUI();
+  }
+
+  function playerResearch(techId) {
+    const result = game.playerResearch(techId);
+    if (!result.ok) {
+      flashMessage(result.reason || "无法研究");
+    }
+    updateUI();
+  }
+
+  function endTurn() {
+    if (game.phase !== 'player_turn') return;
+    const btn = document.getElementById('end-turn-btn');
+    btn.disabled = true;
+
+    // 先显示AI出兵
+    game.endPlayerTurn();
+
+    // 战斗日志动画完成后恢复
+    setTimeout(() => {
+      btn.disabled = false;
+      updateUI();
+    }, 1000);
+  }
+
+  function updatePhase(phase) {
+    const badge = document.getElementById('phase-badge');
+    const btn = document.getElementById('end-turn-btn');
+    switch (phase) {
+      case 'player_turn':
+        badge.textContent = '你的回合';
+        badge.className = 'phase-badge phase-player';
+        btn.disabled = false;
+        break;
+      case 'ai_turn':
+        badge.textContent = 'AI思考中...';
+        badge.className = 'phase-badge phase-ai';
+        btn.disabled = true;
+        break;
+      case 'combat':
+        badge.textContent = '⚔️ 战斗中';
+        badge.className = 'phase-badge phase-combat';
+        btn.disabled = true;
+        break;
+    }
+  }
+
+  function updateUI() {
+    // 回合数
+    document.getElementById('turn-num').textContent = game.turn + 1;
+
+    // 资源
+    document.getElementById('gold').textContent = game.blueResources.gold;
+    document.getElementById('lumber').textContent = game.blueResources.lumber;
+
+    // 基地
+    const bbPct = Math.max(0, game.blueBase.hp / game.blueBase.maxHp * 100);
+    const rbPct = Math.max(0, game.redBase.hp / game.redBase.maxHp * 100);
+    document.getElementById('blue-base-hp').style.width = bbPct + '%';
+    document.getElementById('red-base-hp').style.width = rbPct + '%';
+    document.getElementById('blue-base-text').textContent = `${Math.max(0,game.blueBase.hp)}/${game.blueBase.maxHp}`;
+    document.getElementById('red-base-text').textContent = `${Math.max(0,game.redBase.hp)}/${game.redBase.maxHp}`;
+
+    // 蓝方军队
+    const blueArmyEl = document.getElementById('blue-army');
+    blueArmyEl.innerHTML = '<span style="font-size:0.75rem;color:#3498db">🔵 蓝方</span> ';
+    game.blueArmy.forEach(u => {
+      const chip = document.createElement('span');
+      chip.className = 'unit-chip' + (u.dead ? ' dead' : '') + (u._newSpawn ? ' new' : '');
+      chip.innerHTML = `${u.icon}${u.dead ? '💀' : ''}<span class="hp-mini">${u.hp}</span>`;
+      blueArmyEl.appendChild(chip);
+      u._newSpawn = false;
+    });
+
+    // 红方军队
+    const redArmyEl = document.getElementById('red-army');
+    redArmyEl.innerHTML = '<span style="font-size:0.75rem;color:#e74c3c">🔴 红方</span> ';
+    game.redBrain.army.forEach(u => {
+      const chip = document.createElement('span');
+      chip.className = 'unit-chip' + (u.dead ? ' dead' : '') + (u._newSpawn ? ' new' : '');
+      chip.innerHTML = `${u.icon}${u.dead ? '💀' : ''}<span class="hp-mini">${u.hp}</span>`;
+      redArmyEl.appendChild(chip);
+      u._newSpawn = false;
+    });
+
+    // 商店状态
+    for (const [key, unit] of Object.entries(UNITS)) {
+      if (unit.isHero) continue;
+      const card = document.getElementById(`shop-${key}`);
+      if (!card) continue;
+      const canAfford = game.blueResources.canAfford(key);
+      const hasTech = !unit.requires || unit.requires.every(r => game.blueResources.techs.includes(r));
+      const armyFull = game.blueArmy.filter(u => !u.dead).length >= 16;
+      card.className = 'shop-card' + ((canAfford && hasTech && !armyFull) ? '' : ' locked');
+    }
+
+    // 科技按钮
+    for (const [key, tech] of Object.entries(TECHS)) {
+      const btn = document.getElementById(`tech-${key}`);
+      if (!btn) continue;
+      const done = game.blueResources.techs.includes(key);
+      const canAfford = game.blueResources.canAffordTech(key);
+      const hasPrereq = !tech.requires || tech.requires.every(r => game.blueResources.techs.includes(r));
+      btn.disabled = done || !canAfford || !hasPrereq;
+      if (done) { btn.className = 'tech-btn done'; btn.textContent = `✅ ${tech.name}`; }
+    }
+  }
+
+  function showCombatLog(log) {
+    const el = document.getElementById('combat-log');
+    el.innerHTML = '';
+    for (const entry of log) {
+      let html = '';
+      switch (entry.type) {
+        case 'attack':
+          html = `<div class="log-line log-attack">${entry.attackerIcon}${entry.attacker} → ${entry.targetIcon}${entry.target} ${entry.damage}伤害 (${entry.mult}x)</div>`;
+          break;
+        case 'kill':
+          html = `<div class="log-line log-kill">💀 ${entry.killerIcon}${entry.killer} 击杀 ${entry.victimIcon}${entry.victim}</div>`;
+          break;
+        case 'heal':
+          html = `<div class="log-line log-heal">💚 ${entry.unitIcon}${entry.unit} 治疗 ${entry.target} +${entry.heal}</div>`;
+          break;
+        case 'skill':
+          html = `<div class="log-line log-skill">✨ ${entry.unitIcon}${entry.unit} ${entry.skill} → ${entry.targetIcon || ''}${entry.target || ''}</div>`;
+          break;
+        case 'aoe':
+          html = `<div class="log-line log-aoe">💥 ${entry.unitIcon}${entry.unit} ${entry.skill} → ${entry.targets?.join(',')} -${entry.damage}</div>`;
+          break;
+        case 'siege':
+          html = `<div class="log-line log-siege">🏰 ${entry.unitIcon}${entry.unit} 围攻${entry.team === 'blue' ? '红' : '蓝'}方基地 -${entry.damage}</div>`;
+          break;
+        case 'crit':
+          html = `<div class="log-line log-crit">⚡ ${entry.attackerIcon}${entry.attacker} 暴击 ${entry.targetIcon}${entry.target} ${entry.damage}!</div>`;
+          break;
+      }
+      el.innerHTML += html;
+    }
+    // AI出兵日志
+    if (game.aiLog && game.aiLog.length > 0) {
+      for (const pick of game.aiLog) {
+        const u = UNITS[pick.type];
+        el.innerHTML += `<div class="log-line log-spawn">🔴 AI出兵 ${u?.icon}${u?.name} <span style="color:#888;font-size:0.7rem">(${pick.reason} ${pick.score}分)</span></div>`;
+      }
+    }
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function flashMessage(msg) {
+    const badge = document.getElementById('phase-badge');
+    const prev = badge.textContent;
+    badge.textContent = msg;
+    badge.style.background = '#e74c3c';
+    setTimeout(() => {
+      badge.style.background = '';
+      badge.textContent = prev;
+    }, 1500);
+  }
+
+  function showGameOver(winner) {
+    const overlay = document.getElementById('game-over');
+    const title = document.getElementById('game-over-title');
+    const result = document.getElementById('game-over-result');
+    overlay.style.display = 'flex';
+    if (winner === 'blue') {
+      title.textContent = '🏆';
+      result.textContent = '蓝方胜利！';
+      result.style.color = '#3498db';
+    } else {
+      title.textContent = '💀';
+      result.textContent = '红方胜利...';
+      result.style.color = '#e74c3c';
+    }
+  }
+
+  // 观战模式自动循环
+  function spectateLoop() {
+    if (game.gameOver) return;
+    setTimeout(() => {
+      game.spectateTick();
+      updateUI();
+      if (!game.gameOver) spectateLoop();
+    }, 2000);
+  }
+</script>
+</body>
+</html>
