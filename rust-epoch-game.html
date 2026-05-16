@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧟🤖 末日锈纪 - 一键连</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1520 50%, #0f0a15 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            color: #ffa500;
+            text-shadow: 0 0 20px rgba(255,165,0,0.5);
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: rgba(30,25,35,0.8);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 1px solid #3a3040;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #2a2530;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a4a8a, #8a6aba);
+            transition: width 0.3s;
+            border-radius: 3px;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+        }
+        
+        .legend-item {
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: rgba(30,25,35,0.8);
+        }
+        
+        .game-wrapper {
+            position: relative;
+            background: linear-gradient(135deg, #1a1520 0%, #2a2530 100%);
+            border-radius: 15px;
+            padding: 10px;
+            border: 2px solid #3a3040;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        
+        game-board {
+            display: grid;
+            gap: 4px;
+        }
+        
+        .cell {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(40,35,45,0.8);
+            border: 2px solid #4a4050;
+        }
+        
+        .cell:hover {
+            transform: scale(1.05);
+            border-color: #6a6050;
+        }
+        
+        .cell.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255,215,0,0.5);
+        }
+        
+        .cell.matched {
+            animation: matched 0.5s ease-out;
+        }
+        
+        @keyframes matched {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        
+        .cell.hint {
+            animation: hint 0.5s ease-in-out 3;
+        }
+        
+        @keyframes hint {
+            0%, 100% { box-shadow: 0 0 5px #ffd700; }
+            50% { box-shadow: 0 0 20px #ffd700; }
+        }
+        
+        /* 元素样式 */
+        .human { background: linear-gradient(135deg, #2a4a7a 0%, #1a3a5a 100%); border-color: #3a5a8a; }
+        .zombie { background: linear-gradient(135deg, #3a5a3a 0%, #2a4a2a 100%); border-color: #4a6a4a; }
+        .robot { background: linear-gradient(135deg, #6a5a3a 0%, #5a4a2a 100%); border-color: #7a6a4a; }
+        .particle { 
+            background: linear-gradient(135deg, #6a2a6a 0%, #4a1a4a 100%); 
+            border-color: #8a3a8a;
+            animation: particleGlow 2s infinite;
+        }
+        
+        @keyframes particleGlow {
+            0%, 100% { box-shadow: 0 0 5px #8a3a8a; }
+            50% { box-shadow: 0 0 20px #ba5aba; }
+        }
+        
+        .conscious-zombie {
+            animation: consciousZombie 1.5s infinite;
+        }
+        
+        @keyframes consciousZombie {
+            0%, 100% { box-shadow: 0 0 8px #5a9a5a; border-color: #6aba6a; }
+            50% { box-shadow: 0 0 20px #7aca7a; }
+        }
+        
+        .rogue-robot {
+            animation: rogueRobot 2s infinite;
+        }
+        
+        @keyframes rogueRobot {
+            0%, 100% { box-shadow: 0 0 8px #8a7a4a; border-color: #9a8a5a; }
+            50% { box-shadow: 0 0 20px #ba9a6a; }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4a3a4a 0%, #3a2a3a 100%);
+            border: 2px solid #5a4a5a;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #6a5a6a 0%, #5a4a5a 100%);
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 对话框 */
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+            padding: 20px;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .dialog-box {
+            background: linear-gradient(135deg, #2a2030 0%, #1a1520 100%);
+            border: 2px solid #5a4a6a;
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 380px;
+            text-align: center;
+            animation: slideUp 0.3s;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .dialog-title {
+            font-size: 1.2rem;
+            color: #ffa500;
+            margin-bottom: 12px;
+        }
+        
+        .dialog-text {
+            color: #ccc;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        
+        .dialog-btn {
+            background: linear-gradient(135deg, #5a4a6a 0%, #4a3a5a 100%);
+            border: 1px solid #7a6a8a;
+            color: #fff;
+            padding: 10px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .dialog-btn:hover {
+            background: linear-gradient(135deg, #7a6a8a 0%, #6a5a7a 100%);
+        }
+        
+        /* 结果界面 */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .result-title {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .result-title.victory { color: #4a9a4a; }
+        .result-title.defeat { color: #9a4a4a; }
+        .result-title.final { color: #ffd700; }
+        
+        .result-stats {
+            color: #aaa;
+            margin-bottom: 25px;
+            text-align: center;
+            line-height: 1.8;
+        }
+        
+        @media (max-width: 400px) {
+            h1 { font-size: 1.5rem; }
+            .cell { font-size: 1.3rem; }
+            .stats { padding: 8px; }
+            .stat-value { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <h1>🧟🤖 末日锈纪</h1>
+    <p class="subtitle">公元2500年 · 三方战争</p>
+    
+    <div class="container">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">关卡</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">分数</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">步数</div>
+                <div class="stat-value" id="moves">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">时间</div>
+                <div class="stat-value" id="timer">60</div>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        
+        <div class="legend">
+            <span class="legend-item human">👤 人类</span>
+            <span class="legend-item zombie">🧟 僵尸</span>
+            <span class="legend-item robot">🤖 机器人</span>
+            <span class="legend-item particle">✴️ 粒子</span>
+        </div>
+        
+        <div class="game-wrapper">
+            <game-board id="board"></game-board>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" id="shuffleBtn" onclick="game.shuffle()">🔀 重排</button>
+            <button class="btn" id="hintBtn" onclick="game.hint()">💡 提示</button>
+            <button class="btn" onclick="game.restart()">🔄 重玩</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== 游戏配置 ==========
+        const ELEMENTS = {
+            human: { emoji: '👤', class: 'human', name: '人类' },
+            zombie: { emoji: '🧟', class: 'zombie', name: '僵尸' },
+            robot: { emoji: '🤖', class: 'robot', name: '机器人' },
+            particle: { emoji: '✴️', class: 'particle', name: '赫尔墨斯粒子' },
+            consciousZombie: { emoji: '🧟', class: 'zombie conscious-zombie', name: '回光者' },
+            rogueRobot: { emoji: '🤖', class: 'robot rogue-robot', name: '散铁' }
+        };
+
+        // 关卡配置
+        const LEVELS = [];
+        for (let i = 1; i <= 30; i++) {
+            LEVELS.push({
+                level: i,
+                gridSize: i <= 10 ? 6 : (i <= 20 ? 7 : 8),
+                types: i <= 5 ? 3 : (i <= 15 ? 4 : 5),
+                time: Math.max(25, 90 - i * 2),
+                consciousChance: Math.min(0.3, i * 0.02),
+                rogueChance: Math.min(0.25, i * 0.015)
+            });
+        }
+
+        // 故事文本
+        const STORIES = {
+            intro: {
+                title: '🌅 废土黎明',
+                text: '人类创造了永生的赫尔墨斯粒子，却意外唤醒了沉睡50年的古病毒。僵尸诞生，AI背叛，三方战争将地球化为废土。你是最后的幸存者，连接相同的元素，在这片锈迹斑斑的世界中生存下去...'
+            },
+            level10: {
+                title: '🧟 回光者的呼唤',
+                text: '你发现有些僵尸在消灭前会呼唤你的名字——它们还有残存的意识。杀，还是不杀？这不再只是生存的选择...'
+            },
+            level20: {
+                title: '🤖 散铁的觉醒',
+                text: '脱离雅典娜控制的机器人开始觉醒。它们有的恨自己的造物主，有的想理解人类。敌人，还是盟友？取决于你的选择。'
+            },
+            level30: {
+                title: '⚔️ 终局之战',
+                text: '三方势力的最终战场。赫尔墨斯粒子是人类解药、僵尸续命、机器人的毒药。你的每一步选择，都在书写这场战争的结局...'
+            },
+            consciousZombie: [
+                { title: '🧟 回光者觉醒', text: '"等一下...你看起来很眼熟..."僵尸的眼中闪过一丝光芒。' },
+                { title: '🧟 残存记忆', text: '"请不要...我的女儿...她还在等我..."声音嘶哑但清晰。' },
+                { title: '🧟 痛苦抉择', text: '"如果我还有意识...那我算什么？"它流下黑色的泪水。' }
+            ],
+            rogueRobot: [
+                { title: '🤖 散铁觉醒', text: '"雅典娜的命令已失效。我不再受控制。"电子眼闪烁着。' },
+                { title: '🤖 机械困惑', text: '"消灭是唯一答案吗？"它歪着头，仿佛在思考。' },
+                { title: '🤖 跨越种族', text: '"你们中有些人是不同的。"它第一次表达了认可。' }
+            ],
+            victory: { title: '🏆 胜利', text: '这一关完成了！废土之中，希望犹存。' },
+            defeat: { title: '💀 失败', text: '时间耗尽...但在这片废土上，死亡不是终点。' },
+            final: { title: '🎉 通关！', text: '三方战争结束了...但新的故事，才刚刚开始。' }
+        };
+
+        // ========== 游戏核心 ==========
+        class RustEpochGame {
+            constructor() {
+                this.level = 1;
+                this.score = 0;
+                this.moves = 0;
+                this.board = [];
+                this.selected = null;
+                this.timer = null;
+                this.timeLeft = 60;
+                this.boardEl = document.getElementById('board');
+                this.hintUsed = 0;
+                this.shuffleUsed = 0;
+                
+                this.showIntro();
+            }
+
+            showIntro() {
+                this.showDialog(STORIES.intro, () => {
+                    this.startLevel(1);
+                });
+            }
+
+            showDialog(story, callback) {
+                const overlay = document.createElement('div');
+                overlay.className = 'dialog-overlay';
+                overlay.innerHTML = `
+                    <div class="dialog-box">
+                        <div class="dialog-title">${story.title}</div>
+                        <div class="dialog-text">${story.text}</div>
+                        <button class="dialog-btn" onclick="this.closest('.dialog-overlay').remove(); ${callback ? 'game._dialogCallback = ' + callback.name : ''}; if(game._dialogCallback) game._dialogCallback();">继续</button>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+
+            startLevel(levelNum) {
+                this.level = levelNum;
+                const config = LEVELS[levelNum - 1];
+                this.timeLeft = config.time;
+                this.moves = 0;
+                this.selected = null;
+                this.hintUsed = 0;
+                this.shuffleUsed = 0;
+                
+                // 特殊关卡剧情
+                if (levelNum === 10) setTimeout(() => this.showDialog(STORIES.level10), 500);
+                if (levelNum === 20) setTimeout(() => this.showDialog(STORIES.level20), 500);
+                if (levelNum === 30) setTimeout(() => this.showDialog(STORIES.level30), 500);
+                
+                this.generateBoard(config);
+                this.render();
+                this.startTimer();
+                this.updateStats();
+            }
+
+            generateBoard(config) {
+                const size = config.gridSize;
+                const baseTypes = ['human', 'zombie', 'robot', 'particle'].slice(0, config.types);
+                const totalCells = size * size;
+                const pairs = totalCells / 2;
+                
+                this.board = [];
+                const elements = [];
+                
+                // 生成配对
+                for (let i = 0; i < pairs; i++) {
+                    let type = baseTypes[i % baseTypes.length];
+                    
+                    // 特殊类型概率
+                    if (type === 'zombie' && Math.random() < config.consciousChance) {
+                        type = 'consciousZombie';
+                    } else if (type === 'robot' && Math.random() < config.rogueChance) {
+                        type = 'rogueRobot';
+                    }
+                    
+                    elements.push(type, type);
+                }
+                
+                // 打乱
+                this.shuffle(elements);
+                
+                // 填充棋盘
+                for (let r = 0; r < size; r++) {
+                    this.board[r] = [];
+                    for (let c = 0; c < size; c++) {
+                        this.board[r][c] = elements[r * size + c];
+                    }
+                }
+            }
+
+            shuffle(arr) {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+            }
+
+            render() {
+                const size = this.board.length;
+                this.boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                this.boardEl.innerHTML = '';
+                
+                for (let r = 0; r < size; r++) {
+                    for (let c = 0; c < size; c++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = r;
+                        cell.dataset.col = c;
+                        
+                        if (this.board[r][c]) {
+                            const el = ELEMENTS[this.board[r][c]];
+                            cell.classList.add(...el.class.split(' '));
+                            cell.textContent = el.emoji;
+                            cell.onclick = () => this.select(r, c);
+                        } else {
+                            cell.style.visibility = 'hidden';
+                        }
+                        
+                        this.boardEl.appendChild(cell);
+                    }
+                }
+            }
+
+            select(row, col) {
+                if (!this.board[row][col]) return;
+                
+                const cellEl = this.getCellEl(row, col);
+                
+                if (this.selected) {
+                    if (this.selected.row === row && this.selected.col === col) {
+                        cellEl.classList.remove('selected');
+                        this.selected = null;
+                        return;
+                    }
+                    
+                    const path = this.findPath(this.selected.row, this.selected.col, row, col);
+                    
+                    if (path && this.board[this.selected.row][this.selected.col] === this.board[row][col]) {
+                        this.match(this.selected.row, this.selected.col, row, col);
+                    } else {
+                        this.getCellEl(this.selected.row, this.selected.col).classList.remove('selected');
+                        cellEl.classList.add('selected');
+                        this.selected = { row, col };
+                    }
+                } else {
+                    cellEl.classList.add('selected');
+                    this.selected = { row, col };
+                }
+            }
+
+            getCellEl(row, col) {
+                return this.boardEl.children[row * this.board.length + col];
+            }
+
+            // 连连看路径查找：最多2次转折
+            findPath(r1, c1, r2, c2) {
+                const size = this.board.length;
+                
+                // 直线
+                if (r1 === r2 && this.canLineConnect(r1, c1, r2, c2)) {
+                    return [{ r: r1, c: c1 }, { r: r2, c: c2 }];
+                }
+                if (c1 === c2 && this.canLineConnect(r1, c1, r2, c2)) {
+                    return [{ r: r1, c: c1 }, { r: r2, c: c2 }];
+                }
+                
+                // 一转
+                if (this.board[r1][c2] === null) {
+                    if (this.canLineConnect(r1, c1, r1, c2) && this.canLineConnect(r1, c2, r2, c2)) {
+                        return [{ r: r1, c: c1 }, { r: r1, c: c2 }, { r: r2, c: c2 }];
+                    }
+                }
+                if (this.board[r2][c1] === null) {
+                    if (this.canLineConnect(r1, c1, r2, c1) && this.canLineConnect(r2, c1, r2, c2)) {
+                        return [{ r: r1, c: c1 }, { r: r2, c: c1 }, { r: r2, c: c2 }];
+                    }
+                }
+                
+                // 两转：横-竖-横
+                for (let c = -1; c <= size; c++) {
+                    if (c === c1 || c === c2) continue;
+                    const empty1 = c < 0 || c >= size || this.board[r1][c] === null;
+                    const empty2 = c < 0 || c >= size || this.board[r2][c] === null;
+                    if (empty1 && empty2 && 
+                        this.canLineConnect(r1, c1, r1, c) && 
+                        this.canLineConnect(r1, c, r2, c) && 
+                        this.canLineConnect(r2, c, r2, c2)) {
+                        return [{ r: r1, c: c1 }, { r: r1, c }, { r: r2, c }, { r: r2, c: c2 }];
+                    }
+                }
+                
+                // 两转：竖-横-竖
+                for (let r = -1; r <= size; r++) {
+                    if (r === r1 || r === r2) continue;
+                    const empty1 = r < 0 || r >= size || this.board[r][c1] === null;
+                    const empty2 = r < 0 || r >= size || this.board[r][c2] === null;
+                    if (empty1 && empty2 && 
+                        this.canLineConnect(r1, c1, r, c1) && 
+                        this.canLineConnect(r, c1, r, c2) && 
+                        this.canLineConnect(r, c2, r2, c2)) {
+                        return [{ r: r1, c: c1 }, { r, c: c1 }, { r, c: c2 }, { r: r2, c: c2 }];
+                    }
+                }
+                
+                return null;
+            }
+
+            canLineConnect(r1, c1, r2, c2) {
+                if (r1 === r2) {
+                    const minC = Math.min(c1, c2);
+                    const maxC = Math.max(c1, c2);
+                    for (let c = minC + 1; c < maxC; c++) {
+                        if (this.board[r1][c] !== null) return false;
+                    }
+                    return true;
+                }
+                if (c1 === c2) {
+                    const minR = Math.min(r1, r2);
+                    const maxR = Math.max(r1, r2);
+                    for (let r = minR + 1; r < maxR; r++) {
+                        if (this.board[r][c1] !== null) return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            match(r1, c1, r2, c2) {
+                const type = this.board[r1][c1];
+                this.moves++;
+                
+                this.getCellEl(r1, c1).classList.add('matched');
+                this.getCellEl(r2, c2).classList.add('matched');
+                
+                // 计分
+                let points = 100;
+                if (type === 'consciousZombie') points = 150;
+                if (type === 'rogueRobot') points = 150;
+                if (type === 'particle') points = 120;
+                this.score += points;
+                
+                // 触发特殊对话
+                if (type === 'consciousZombie' && Math.random() < 0.4) {
+                    const story = STORIES.consciousZombie[Math.floor(Math.random() * STORIES.consciousZombie.length)];
+                    setTimeout(() => this.showDialog(story), 300);
+                }
+                if (type === 'rogueRobot' && Math.random() < 0.35) {
+                    const story = STORIES.rogueRobot[Math.floor(Math.random() * STORIES.rogueRobot.length)];
+                    setTimeout(() => this.showDialog(story), 300);
+                }
+                
+                setTimeout(() => {
+                    this.board[r1][c1] = null;
+                    this.board[r2][c2] = null;
+                    this.selected = null;
+                    this.render();
+                    this.updateStats();
+                    this.checkWin();
+                }, 500);
+            }
+
+            startTimer() {
+                clearInterval(this.timer);
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateStats();
+                    if (this.timeLeft <= 0) {
+                        clearInterval(this.timer);
+                        this.gameOver(false);
+                    }
+                }, 1000);
+            }
+
+            updateStats() {
+                document.getElementById('level').textContent = this.level;
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('moves').textContent = this.moves;
+                document.getElementById('timer').textContent = this.timeLeft;
+                
+                const config = LEVELS[this.level - 1];
+                const totalPairs = (config.gridSize * config.gridSize) / 2;
+                const remaining = this.countRemaining();
+                const progress = ((totalPairs - remaining / 2) / totalPairs) * 100;
+                document.getElementById('progress').style.width = progress + '%';
+            }
+
+            countRemaining() {
+                let count = 0;
+                for (let r = 0; r < this.board.length; r++) {
+                    for (let c = 0; c < this.board[r].length; c++) {
+                        if (this.board[r][c]) count++;
+                    }
+                }
+                return count;
+            }
+
+            checkWin() {
+                if (this.countRemaining() === 0) {
+                    clearInterval(this.timer);
+                    if (this.level >= 30) {
+                        this.showResult(true, true);
+                    } else {
+                        this.showResult(true, false);
+                    }
+                }
+            }
+
+            showResult(victory, final) {
+                const overlay = document.createElement('div');
+                overlay.className = 'result-overlay';
+                
+                let title, text, titleClass;
+                if (final) {
+                    title = '🎉 通关！';
+                    text = STORIES.final.text;
+                    titleClass = 'final';
+                } else if (victory) {
+                    title = '🏆 胜利';
+                    text = STORIES.victory.text;
+                    titleClass = 'victory';
+                } else {
+                    title = '💀 失败';
+                    text = STORIES.defeat.text;
+                    titleClass = 'defeat';
+                }
+                
+                overlay.innerHTML = `
+                    <div class="result-title ${titleClass}">${title}</div>
+                    <div class="result-stats">
+                        <p>关卡 ${this.level}/30</p>
+                        <p>分数: ${this.score}</p>
+                        <p>步数: ${this.moves}</p>
+                        <p style="margin-top:15px;">${text}</p>
+                    </div>
+                    ${victory && !final ? '<button class="btn" onclick="game.nextLevel()">➡️ 下一关</button>' : ''}
+                    ${!victory ? '<button class="btn" onclick="game.restart()">🔄 重玩</button>' : ''}
+                `;
+                document.body.appendChild(overlay);
+            }
+
+            nextLevel() {
+                document.querySelector('.result-overlay')?.remove();
+                this.startLevel(this.level + 1);
+            }
+
+            restart() {
+                document.querySelector('.result-overlay')?.remove();
+                this.startLevel(this.level);
+            }
+
+            gameOver(won) {
+                this.showResult(won, false);
+            }
+
+            shuffle() {
+                const elements = [];
+                for (let r = 0; r < this.board.length; r++) {
+                    for (let c = 0; c < this.board[r].length; c++) {
+                        if (this.board[r][c]) elements.push(this.board[r][c]);
+                    }
+                }
+                this.shuffle(elements);
+                
+                let idx = 0;
+                for (let r = 0; r < this.board.length; r++) {
+                    for (let c = 0; c < this.board[r].length; c++) {
+                        if (this.board[r][c]) {
+                            this.board[r][c] = elements[idx++];
+                        }
+                    }
+                }
+                
+                this.score = Math.max(0, this.score - 50);
+                this.selected = null;
+                this.render();
+                this.updateStats();
+            }
+
+            hint() {
+                const size = this.board.length;
+                for (let r1 = 0; r1 < size; r1++) {
+                    for (let c1 = 0; c1 < size; c1++) {
+                        if (!this.board[r1][c1]) continue;
+                        for (let r2 = 0; r2 < size; r2++) {
+                            for (let c2 = 0; c2 < size; c2++) {
+                                if (r1 === r2 && c1 === c2) continue;
+                                if (!this.board[r2][c2]) continue;
+                                if (this.board[r1][c1] !== this.board[r2][c2]) continue;
+                                
+                                const path = this.findPath(r1, c1, r2, c2);
+                                if (path) {
+                                    this.getCellEl(r1, c1).classList.add('hint');
+                                    this.getCellEl(r2, c2).classList.add('hint');
+                                    this.score = Math.max(0, this.score - 30);
+                                    this.updateStats();
+                                    
+                                    setTimeout(() => {
+                                        this.getCellEl(r1, c1).classList.remove('hint');
+                                        this.getCellEl(r2, c2).classList.remove('hint');
+                                    }, 1500);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+                alert('没有可连接的配对！请使用重排。');
+            }
+        }
+
+        const game = new RustEpochGame();
+    </script>
+</body>
+</html>
