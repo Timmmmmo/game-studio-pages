@@ -348,6 +348,8 @@
             <span class="legend-item zombie">🧟 僵尸</span>
             <span class="legend-item robot">🤖 机器人</span>
             <span class="legend-item particle">✴️ 粒子</span>
+            <span class="legend-item" style="border:1px solid #6aba6a;">👁 回光者</span>
+            <span class="legend-item" style="border:1px solid #9a8a5a;">⚙️ 散铁</span>
         </div>
         
         <div class="game-wrapper">
@@ -355,7 +357,7 @@
         </div>
         
         <div class="controls">
-            <button class="btn" id="shuffleBtn" onclick="game.shuffle()">🔀 重排</button>
+            <button class="btn" id="shuffleBtn" onclick="game.shuffleBoard()">🔀 重排</button>
             <button class="btn" id="hintBtn" onclick="game.hint()">💡 提示</button>
             <button class="btn" onclick="game.restart()">🔄 重玩</button>
         </div>
@@ -368,8 +370,8 @@
             zombie: { emoji: '🧟', class: 'zombie', name: '僵尸' },
             robot: { emoji: '🤖', class: 'robot', name: '机器人' },
             particle: { emoji: '✴️', class: 'particle', name: '赫尔墨斯粒子' },
-            consciousZombie: { emoji: '🧟', class: 'zombie conscious-zombie', name: '回光者' },
-            rogueRobot: { emoji: '🤖', class: 'robot rogue-robot', name: '散铁' }
+            consciousZombie: { emoji: '👁', class: 'zombie conscious-zombie', name: '回光者', badge: '💡' },
+            rogueRobot: { emoji: '⚙️', class: 'robot rogue-robot', name: '散铁', badge: '🔴' }
         };
 
         // 关卡配置
@@ -377,9 +379,9 @@
         for (let i = 1; i <= 30; i++) {
             LEVELS.push({
                 level: i,
-                gridSize: i <= 10 ? 6 : (i <= 20 ? 7 : 8),
+                gridSize: i <= 10 ? 6 : 8, // [Bug#2] 7x7=49奇数格，改为8x8=64
                 types: i <= 5 ? 3 : (i <= 15 ? 4 : 5),
-                time: Math.max(25, 90 - i * 2),
+                time: Math.max(40, 120 - i * 2), // [Bug#12] 最少40秒，起始120秒
                 consciousChance: Math.min(0.3, i * 0.02),
                 rogueChance: Math.min(0.25, i * 0.015)
             });
@@ -432,6 +434,10 @@
                 this.hintUsed = 0;
                 this.shuffleUsed = 0;
                 
+                this._dialogCallback = null; // [Bug#1]
+                this._dialogOpen = false;     // [Bug#6]
+                this._timerPaused = false;    // [Bug#5]
+                
                 this.showIntro();
             }
 
@@ -441,17 +447,38 @@
                 });
             }
 
+            // [Bug#1] 重写showDialog - 事件绑定代替拼接callback.name
+            // [Bug#5] 对话框暂停计时器
+            // [Bug#6] 防止对话框叠加
             showDialog(story, callback) {
+                if (this._dialogOpen) {
+                    setTimeout(() => this.showDialog(story, callback), 500);
+                    return;
+                }
+                this._dialogOpen = true;
+                this._dialogCallback = callback || null;
+                this._timerPaused = true; // [Bug#5]
+                
                 const overlay = document.createElement('div');
                 overlay.className = 'dialog-overlay';
                 overlay.innerHTML = `
                     <div class="dialog-box">
                         <div class="dialog-title">${story.title}</div>
                         <div class="dialog-text">${story.text}</div>
-                        <button class="dialog-btn" onclick="this.closest('.dialog-overlay').remove(); ${callback ? 'game._dialogCallback = ' + callback.name : ''}; if(game._dialogCallback) game._dialogCallback();">继续</button>
+                        <button class="dialog-btn" id="dialogContinueBtn">继续</button>
                     </div>
                 `;
                 document.body.appendChild(overlay);
+                
+                document.getElementById('dialogContinueBtn').addEventListener('click', () => {
+                    overlay.remove();
+                    this._dialogOpen = false;
+                    this._timerPaused = false; // [Bug#5]
+                    if (this._dialogCallback) {
+                        this._dialogCallback();
+                        this._dialogCallback = null;
+                    }
+                });
             }
 
             startLevel(levelNum) {
@@ -478,7 +505,7 @@
                 const size = config.gridSize;
                 const baseTypes = ['human', 'zombie', 'robot', 'particle'].slice(0, config.types);
                 const totalCells = size * size;
-                const pairs = totalCells / 2;
+                const pairs = Math.floor(totalCells / 2); // [Bug#2] 确保整数
                 
                 this.board = [];
                 const elements = [];
@@ -497,8 +524,13 @@
                     elements.push(type, type);
                 }
                 
-                // 打乱
-                this.shuffle(elements);
+                // [Bug#2] 奇数格填充null
+                while (elements.length < totalCells) {
+                    elements.push(null);
+                }
+                
+                // 打乱 - [Bug#8] 使用重命名方法
+                this._shuffleArray(elements);
                 
                 // 填充棋盘
                 for (let r = 0; r < size; r++) {
@@ -509,7 +541,8 @@
                 }
             }
 
-            shuffle(arr) {
+            // [Bug#8] 重命名：Fisher-Yates洗牌
+            _shuffleArray(arr) {
                 for (let i = arr.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -532,6 +565,14 @@
                             const el = ELEMENTS[this.board[r][c]];
                             cell.classList.add(...el.class.split(' '));
                             cell.textContent = el.emoji;
+                            // [Bug#9] 类型标签区分回光者/散铁
+                            if (el.badge) {
+                                const badge = document.createElement('span');
+                                badge.className = 'type-badge';
+                                badge.textContent = el.badge;
+                                cell.style.position = 'relative';
+                                cell.appendChild(badge);
+                            }
                             cell.onclick = () => this.select(r, c);
                         } else {
                             cell.style.visibility = 'hidden';
@@ -544,6 +585,7 @@
 
             select(row, col) {
                 if (!this.board[row][col]) return;
+                if (this._dialogOpen) return; // [Bug#6]
                 
                 const cellEl = this.getCellEl(row, col);
                 
@@ -573,26 +615,24 @@
                 return this.boardEl.children[row * this.board.length + col];
             }
 
-            // 连连看路径查找：最多2次转折
+            // [Bug#3] 修复越界访问
             findPath(r1, c1, r2, c2) {
                 const size = this.board.length;
                 
                 // 直线
-                if (r1 === r2 && this.canLineConnect(r1, c1, r2, c2)) {
+                if (r1 === r2 && this._canLineConnect(r1, c1, r2, c2)) {
                     return [{ r: r1, c: c1 }, { r: r2, c: c2 }];
                 }
-                if (c1 === c2 && this.canLineConnect(r1, c1, r2, c2)) {
+                if (c1 === c2 && this._canLineConnect(r1, c1, r2, c2)) {
                     return [{ r: r1, c: c1 }, { r: r2, c: c2 }];
                 }
                 
                 // 一转
-                if (this.board[r1][c2] === null) {
-                    if (this.canLineConnect(r1, c1, r1, c2) && this.canLineConnect(r1, c2, r2, c2)) {
+                if (r1 !== r2 && c1 !== c2) {
+                    if (this._isCellEmpty(r1, c2) && this._canLineConnect(r1, c1, r1, c2) && this._canLineConnect(r1, c2, r2, c2)) {
                         return [{ r: r1, c: c1 }, { r: r1, c: c2 }, { r: r2, c: c2 }];
                     }
-                }
-                if (this.board[r2][c1] === null) {
-                    if (this.canLineConnect(r1, c1, r2, c1) && this.canLineConnect(r2, c1, r2, c2)) {
+                    if (this._isCellEmpty(r2, c1) && this._canLineConnect(r1, c1, r2, c1) && this._canLineConnect(r2, c1, r2, c2)) {
                         return [{ r: r1, c: c1 }, { r: r2, c: c1 }, { r: r2, c: c2 }];
                     }
                 }
@@ -600,12 +640,10 @@
                 // 两转：横-竖-横
                 for (let c = -1; c <= size; c++) {
                     if (c === c1 || c === c2) continue;
-                    const empty1 = c < 0 || c >= size || this.board[r1][c] === null;
-                    const empty2 = c < 0 || c >= size || this.board[r2][c] === null;
-                    if (empty1 && empty2 && 
-                        this.canLineConnect(r1, c1, r1, c) && 
-                        this.canLineConnect(r1, c, r2, c) && 
-                        this.canLineConnect(r2, c, r2, c2)) {
+                    if (this._isCellEmpty(r1, c) && this._isCellEmpty(r2, c) && 
+                        this._canLineConnect(r1, c1, r1, c) && 
+                        this._canLineConnect(r1, c, r2, c) && 
+                        this._canLineConnect(r2, c, r2, c2)) {
                         return [{ r: r1, c: c1 }, { r: r1, c }, { r: r2, c }, { r: r2, c: c2 }];
                     }
                 }
@@ -613,25 +651,31 @@
                 // 两转：竖-横-竖
                 for (let r = -1; r <= size; r++) {
                     if (r === r1 || r === r2) continue;
-                    const empty1 = r < 0 || r >= size || this.board[r][c1] === null;
-                    const empty2 = r < 0 || r >= size || this.board[r][c2] === null;
-                    if (empty1 && empty2 && 
-                        this.canLineConnect(r1, c1, r, c1) && 
-                        this.canLineConnect(r, c1, r, c2) && 
-                        this.canLineConnect(r, c2, r2, c2)) {
+                    if (this._isCellEmpty(r, c1) && this._isCellEmpty(r, c2) && 
+                        this._canLineConnect(r1, c1, r, c1) && 
+                        this._canLineConnect(r, c1, r, c2) && 
+                        this._canLineConnect(r, c2, r2, c2)) {
                         return [{ r: r1, c: c1 }, { r, c: c1 }, { r, c: c2 }, { r: r2, c: c2 }];
                     }
                 }
                 
                 return null;
             }
+            
+            // [Bug#3] 安全判空
+            _isCellEmpty(r, c) {
+                const size = this.board.length;
+                if (r < 0 || r >= size || c < 0 || c >= size) return true;
+                return this.board[r][c] === null;
+            }
 
-            canLineConnect(r1, c1, r2, c2) {
+            // [Bug#3] 重写 - 添加边界检查
+            _canLineConnect(r1, c1, r2, c2) {
                 if (r1 === r2) {
                     const minC = Math.min(c1, c2);
                     const maxC = Math.max(c1, c2);
                     for (let c = minC + 1; c < maxC; c++) {
-                        if (this.board[r1][c] !== null) return false;
+                        if (!this._isCellEmpty(r1, c)) return false;
                     }
                     return true;
                 }
@@ -639,7 +683,7 @@
                     const minR = Math.min(r1, r2);
                     const maxR = Math.max(r1, r2);
                     for (let r = minR + 1; r < maxR; r++) {
-                        if (this.board[r][c1] !== null) return false;
+                        if (!this._isCellEmpty(r, c1)) return false;
                     }
                     return true;
                 }
@@ -680,9 +724,11 @@
                 }, 500);
             }
 
+            // [Bug#5] 计时器支持暂停
             startTimer() {
                 clearInterval(this.timer);
                 this.timer = setInterval(() => {
+                    if (this._timerPaused) return;
                     this.timeLeft--;
                     this.updateStats();
                     if (this.timeLeft <= 0) {
@@ -699,10 +745,11 @@
                 document.getElementById('timer').textContent = this.timeLeft;
                 
                 const config = LEVELS[this.level - 1];
-                const totalPairs = (config.gridSize * config.gridSize) / 2;
+                const totalCells = config.gridSize * config.gridSize;
+                const totalPairs = Math.floor(totalCells / 2); // [Bug#11]
                 const remaining = this.countRemaining();
                 const progress = ((totalPairs - remaining / 2) / totalPairs) * 100;
-                document.getElementById('progress').style.width = progress + '%';
+                document.getElementById('progress').style.width = Math.max(0, Math.min(100, progress)) + '%';
             }
 
             countRemaining() {
@@ -726,6 +773,7 @@
                 }
             }
 
+            // [Bug#4] 通关画面添加按钮
             showResult(victory, final) {
                 const overlay = document.createElement('div');
                 overlay.className = 'result-overlay';
@@ -745,6 +793,15 @@
                     titleClass = 'defeat';
                 }
                 
+                let buttons = '';
+                if (victory && !final) {
+                    buttons = '<button class="btn" onclick="game.nextLevel()">➡️ 下一关</button>';
+                } else if (!victory) {
+                    buttons = '<button class="btn" onclick="game.restart()">🔄 重玩</button>';
+                } else if (final) {
+                    buttons = '<div class="result-buttons"><button class="btn" onclick="game.restartFromStart()">🏠 回到第1关</button><button class="btn" onclick="game.restart()">🔄 重玩第30关</button></div>';
+                }
+                
                 overlay.innerHTML = `
                     <div class="result-title ${titleClass}">${title}</div>
                     <div class="result-stats">
@@ -753,8 +810,7 @@
                         <p>步数: ${this.moves}</p>
                         <p style="margin-top:15px;">${text}</p>
                     </div>
-                    ${victory && !final ? '<button class="btn" onclick="game.nextLevel()">➡️ 下一关</button>' : ''}
-                    ${!victory ? '<button class="btn" onclick="game.restart()">🔄 重玩</button>' : ''}
+                    ${buttons}
                 `;
                 document.body.appendChild(overlay);
             }
@@ -768,33 +824,86 @@
                 document.querySelector('.result-overlay')?.remove();
                 this.startLevel(this.level);
             }
+            
+            // [Bug#4] 从第1关重新开始
+            restartFromStart() {
+                document.querySelector('.result-overlay')?.remove();
+                this.score = 0;
+                this.startLevel(1);
+            }
 
             gameOver(won) {
                 this.showResult(won, false);
             }
 
-            shuffle() {
+            // [Bug#7] 重排后确保有解 + [Bug#8] 方法名修正
+            shuffleBoard() {
                 const elements = [];
                 for (let r = 0; r < this.board.length; r++) {
                     for (let c = 0; c < this.board[r].length; c++) {
                         if (this.board[r][c]) elements.push(this.board[r][c]);
                     }
                 }
-                this.shuffle(elements);
                 
-                let idx = 0;
-                for (let r = 0; r < this.board.length; r++) {
-                    for (let c = 0; c < this.board[r].length; c++) {
-                        if (this.board[r][c]) {
-                            this.board[r][c] = elements[idx++];
+                // 尝试打乱，最多10次确保有解
+                let attempts = 0;
+                do {
+                    this._shuffleArray(elements);
+                    let idx = 0;
+                    for (let r = 0; r < this.board.length; r++) {
+                        for (let c = 0; c < this.board[r].length; c++) {
+                            if (this.board[r][c] !== null) {
+                                // placeholder
+                            }
                         }
                     }
-                }
+                    // 重新填充
+                    idx = 0;
+                    for (let r = 0; r < this.board.length; r++) {
+                        for (let c = 0; c < this.board[r].length; c++) {
+                            if (this.board[r][c] !== null) {
+                                this.board[r][c] = elements[idx++];
+                            }
+                        }
+                    }
+                    attempts++;
+                } while (!this._hasAnyMatch() && attempts < 10);
                 
                 this.score = Math.max(0, this.score - 50);
                 this.selected = null;
                 this.render();
                 this.updateStats();
+                
+                // [Bug#10] 扣分视觉反馈
+                this._showPenalty(-50);
+            }
+            
+            // [Bug#7] 检查是否有可连接的配对
+            _hasAnyMatch() {
+                const size = this.board.length;
+                for (let r1 = 0; r1 < size; r1++) {
+                    for (let c1 = 0; c1 < size; c1++) {
+                        if (!this.board[r1][c1]) continue;
+                        for (let r2 = r1; r2 < size; r2++) {
+                            for (let c2 = (r2 === r1 ? c1 + 1 : 0); c2 < size; c2++) {
+                                if (!this.board[r2][c2]) continue;
+                                if (this.board[r1][c1] === this.board[r2][c2]) {
+                                    if (this.findPath(r1, c1, r2, c2)) return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            // [Bug#10] 扣分视觉反馈
+            _showPenalty(amount) {
+                const el = document.createElement('div');
+                el.className = 'score-penalty';
+                el.textContent = amount + '分';
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
             }
 
             hint() {
@@ -802,9 +911,8 @@
                 for (let r1 = 0; r1 < size; r1++) {
                     for (let c1 = 0; c1 < size; c1++) {
                         if (!this.board[r1][c1]) continue;
-                        for (let r2 = 0; r2 < size; r2++) {
-                            for (let c2 = 0; c2 < size; c2++) {
-                                if (r1 === r2 && c1 === c2) continue;
+                        for (let r2 = r1; r2 < size; r2++) {
+                            for (let c2 = (r2 === r1 ? c1 + 1 : 0); c2 < size; c2++) {
                                 if (!this.board[r2][c2]) continue;
                                 if (this.board[r1][c1] !== this.board[r2][c2]) continue;
                                 
@@ -814,10 +922,13 @@
                                     this.getCellEl(r2, c2).classList.add('hint');
                                     this.score = Math.max(0, this.score - 30);
                                     this.updateStats();
+                                    this._showPenalty(-30); // [Bug#10]
                                     
                                     setTimeout(() => {
-                                        this.getCellEl(r1, c1).classList.remove('hint');
-                                        this.getCellEl(r2, c2).classList.remove('hint');
+                                        const el1 = this.getCellEl(r1, c1);
+                                        const el2 = this.getCellEl(r2, c2);
+                                        if (el1) el1.classList.remove('hint');
+                                        if (el2) el2.classList.remove('hint');
                                     }, 1500);
                                     return;
                                 }
@@ -825,7 +936,10 @@
                         }
                     }
                 }
-                alert('没有可连接的配对！请使用重排。');
+                // [Bug#7] 无可连接对时自动重排
+                if (this.countRemaining() > 0) {
+                    this.shuffleBoard();
+                }
             }
         }
 
